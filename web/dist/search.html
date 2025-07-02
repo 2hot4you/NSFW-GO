@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>搜索 - NSFW-Go</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .movie-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .movie-card:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .search-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .search-input:focus {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .search-suggestion {
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .search-suggestion:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .suggestions-dropdown {
+            background: rgba(30, 27, 75, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+
+        
+        .section-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .count-badge {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        
+        .count-badge.yellow {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        
+        .count-badge.green {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .rating-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+    </style>
+</head>
+<body class="gradient-bg min-h-screen text-white">
+    <!-- 简化导航栏 -->
+    <nav class="glass-effect border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo 和标题 -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex-shrink-0">
+                        <a href="/" class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r from-purple-400 to-blue-400 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-film text-white text-sm"></i>
+                            </div>
+                            <span class="text-xl font-bold">NSFW-Go</span>
+                        </a>
+                    </div>
+                    <div class="hidden md:flex items-baseline space-x-4 ml-8">
+                        <a href="/" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            <i class="fas fa-home mr-2"></i>首页
+                        </a>
+                        <a href="/local-movies.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            <i class="fas fa-folder-open mr-2"></i>本地影片
+                        </a>
+                        <a href="/rankings.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            <i class="fas fa-trophy mr-2"></i>排行榜
+                        </a>
+                        <a href="/search.html" class="bg-white/10 text-white px-3 py-2 rounded-md text-sm font-medium">
+                            <i class="fas fa-search mr-2"></i>搜索
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- 右侧按钮 -->
+                <div class="flex items-center space-x-2">
+                    <!-- 移动端导航按钮 -->
+                    <div class="md:hidden flex items-center space-x-2">
+                        <a href="/" class="text-gray-300 hover:text-white p-2 rounded-md transition-colors" title="首页">
+                            <i class="fas fa-home"></i>
+                        </a>
+                        <a href="/local-movies.html" class="text-gray-300 hover:text-white p-2 rounded-md transition-colors" title="本地影片">
+                            <i class="fas fa-folder-open"></i>
+                        </a>
+                        <a href="/rankings.html" class="text-gray-300 hover:text-white p-2 rounded-md transition-colors" title="排行榜">
+                            <i class="fas fa-trophy"></i>
+                        </a>
+                        <span class="bg-white/10 text-white p-2 rounded-md">
+                            <i class="fas fa-search"></i>
+                        </span>
+                    </div>
+                    <!-- 设置按钮 -->
+                    <a href="/config.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                        <i class="fas fa-cogs mr-2"></i><span class="hidden sm:inline">设置</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- 搜索区域 -->
+        <div class="glass-effect rounded-xl p-8 mb-8">
+            <h1 class="text-3xl font-bold text-white mb-6">
+                <i class="fas fa-search mr-3 text-blue-400"></i>影片搜索
+            </h1>
+            
+            <div class="relative">
+                <input 
+                    type="text" 
+                    id="search-input" 
+                    placeholder="搜索影片标题、演员、番号..." 
+                    class="search-input w-full px-4 py-3 rounded-lg text-lg"
+                    autocomplete="off"
+                >
+                <button 
+                    id="search-btn" 
+                    class="absolute right-2 top-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all"
+                >
+                    <i class="fas fa-search"></i>
+                </button>
+                
+                <!-- 搜索建议下拉框 -->
+                <div id="suggestions-dropdown" class="suggestions-dropdown absolute top-full left-0 right-0 rounded-b-lg shadow-lg hidden z-10">
+                    <!-- 动态内容 -->
+                </div>
+            </div>
+            
+            <!-- 搜索选项 -->
+            <div class="mt-6 flex flex-wrap gap-6">
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" id="search-local" checked class="w-4 h-4 text-blue-600 bg-white/10 border-white/20 rounded focus:ring-blue-500">
+                    <span class="text-sm text-gray-300">本地影片</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" id="search-rankings" checked class="w-4 h-4 text-blue-600 bg-white/10 border-white/20 rounded focus:ring-blue-500">
+                    <span class="text-sm text-gray-300">排行榜</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" id="search-javdb" class="w-4 h-4 text-blue-600 bg-white/10 border-white/20 rounded focus:ring-blue-500">
+                    <span class="text-sm text-gray-300">JAVDb在线搜索</span>
+                </label>
+            </div>
+            
+            <!-- JAVDb搜索类型选择 -->
+            <div id="javdb-options" class="mt-4 ml-8 hidden">
+                <div class="flex gap-6">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="javdb-type" value="auto" checked class="w-4 h-4 text-blue-600 bg-white/10 border-white/20 focus:ring-blue-500">
+                        <span class="text-sm text-gray-400">自动识别</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="javdb-type" value="movie" class="w-4 h-4 text-blue-600 bg-white/10 border-white/20 focus:ring-blue-500">
+                        <span class="text-sm text-gray-400">番号搜索</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="javdb-type" value="actress" class="w-4 h-4 text-blue-600 bg-white/10 border-white/20 focus:ring-blue-500">
+                        <span class="text-sm text-gray-400">演员搜索</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 搜索结果 -->
+        <div id="search-results" class="hidden">
+            <!-- 结果统计 -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-semibold text-white" id="results-title">搜索结果</h2>
+                <p class="text-gray-400 mt-2" id="results-stats">找到 0 个结果</p>
+            </div>
+
+            <!-- 本地影片结果 -->
+            <div id="local-results-section" class="mb-8">
+                <div class="section-card rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-white mb-6 flex items-center">
+                        <i class="fas fa-film mr-3 text-blue-400"></i>本地影片
+                        <span id="local-count" class="count-badge ml-3 px-3 py-1 text-sm rounded-full font-medium">0</span>
+                    </h3>
+                    <div id="local-movies-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <!-- 本地影片卡片 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 排行榜结果 -->
+            <div id="rankings-results-section" class="mb-8">
+                <div class="section-card rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-white mb-6 flex items-center">
+                        <i class="fas fa-trophy mr-3 text-yellow-400"></i>排行榜影片
+                        <span id="rankings-count" class="count-badge yellow ml-3 px-3 py-1 text-sm rounded-full font-medium">0</span>
+                    </h3>
+                    <div id="rankings-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <!-- 排行榜影片卡片 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- JAVDb搜索结果 -->
+            <div id="javdb-results-section" class="mb-8">
+                <div class="section-card rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-white mb-6 flex items-center">
+                        <i class="fas fa-globe mr-3 text-green-400"></i>JAVDb搜索结果
+                        <span id="javdb-count" class="count-badge green ml-3 px-3 py-1 text-sm rounded-full font-medium">0</span>
+                    </h3>
+                    <div id="javdb-results-container">
+                        <!-- JAVDb搜索结果 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 空状态 -->
+        <div id="empty-state" class="text-center py-20">
+            <div class="glass-effect rounded-xl p-12 max-w-md mx-auto">
+                <i class="fas fa-search text-6xl text-blue-400 mb-6"></i>
+                <h3 class="text-xl font-semibold text-white mb-3">开始搜索</h3>
+                <p class="text-gray-400">输入关键词来搜索影片</p>
+            </div>
+        </div>
+
+        <!-- 无结果状态 -->
+        <div id="no-results" class="text-center py-20 hidden">
+            <div class="glass-effect rounded-xl p-12 max-w-md mx-auto">
+                <i class="fas fa-search-minus text-6xl text-gray-500 mb-6"></i>
+                <h3 class="text-xl font-semibold text-white mb-3">未找到相关结果</h3>
+                <p class="text-gray-400">尝试使用其他关键词搜索</p>
+            </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loading-state" class="text-center py-20 hidden">
+            <div class="glass-effect rounded-xl p-12 max-w-md mx-auto">
+                <div class="flex items-center justify-center mb-6">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
+                </div>
+                <h3 class="text-xl font-semibold text-white mb-3">搜索中...</h3>
+                <p class="text-gray-400">正在为您查找相关影片</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="static/js/search.js"></script>
+</body>
+</html> 

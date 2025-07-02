@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本地影视库 - NSFW-Go</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .hover-scale {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .hover-scale:hover {
+            transform: scale(1.02);
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+        
+        .slide-up {
+            animation: slideUp 0.6s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .movie-card {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+        }
+        
+        .movie-poster {
+            background: linear-gradient(135deg, #2a2d3a 0%, #3c4043 100%);
+        }
+        
+        .filter-card {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(20px);
+        }
+        
+        .search-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .loading-shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        .status-dot {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="bg-gray-800/50 backdrop-filter backdrop-blur-md border-b border-gray-700/50 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-xl font-bold text-white">
+                        <i class="fas fa-video mr-2 text-blue-400"></i>NSFW-Go
+                    </a>
+                    <span class="text-gray-400">/</span>
+                    <span class="text-lg font-medium text-blue-400">
+                        <i class="fas fa-folder-open mr-2"></i>本地影视库
+                    </span>
+                </div>
+                
+                <div class="flex items-center space-x-4" id="nav-right-privacy-anchor">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-green-400 rounded-full status-dot"></div>
+                        <span class="text-sm text-gray-400" id="movieCount">加载中...</span>
+                    </div>
+                    
+                    <!-- 系统设置按钮 -->
+                    <button onclick="window.location.href='/config.html'" class="text-gray-300 hover:text-white p-2 rounded-lg transition-colors" title="系统设置">
+                        <i class="fas fa-cogs text-lg"></i>
+                    </button>
+                    
+                    <button 
+                        onclick="window.location.href='/'"
+                        class="px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg transition-all duration-200 text-sm"
+                    >
+                        <i class="fas fa-home mr-2"></i>返回首页
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容区域 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 页面标题 -->
+        <div class="mb-8 fade-in">
+            <h1 class="text-4xl font-bold text-center mb-4">
+                本地影视库管理
+                <span class="block text-lg font-normal text-gray-400 mt-2">本地影片文件浏览和管理</span>
+            </h1>
+        </div>
+
+        <!-- 筛选和搜索区域 -->
+        <div class="filter-card rounded-2xl p-6 mb-8 fade-in" style="animation-delay: 0.1s;">
+            <div class="flex flex-col lg:flex-row gap-6">
+                <!-- 搜索框 -->
+                <div class="flex-1">
+                    <div class="relative">
+                        <input 
+                            type="text" 
+                            id="searchInput"
+                            placeholder="搜索影片标题、番号或女优名..." 
+                            class="w-full px-4 py-3 pl-12 search-input rounded-xl text-white placeholder-gray-300"
+                            oninput="filterMovies()"
+                        >
+                        <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+                
+                <!-- 筛选选项 -->
+                <div class="flex flex-wrap gap-4">
+                    <select 
+                        id="actressFilter" 
+                        class="px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white"
+                        onchange="filterMovies()"
+                    >
+                        <option value="">所有女优</option>
+                    </select>
+                    
+                    <select 
+                        id="formatFilter" 
+                        class="px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white"
+                        onchange="filterMovies()"
+                    >
+                        <option value="">所有格式</option>
+                        <option value="MP4">MP4</option>
+                        <option value="MKV">MKV</option>
+                        <option value="AVI">AVI</option>
+                    </select>
+                    
+                    <button 
+                        onclick="scanLocalMovies()"
+                        class="px-6 py-3 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-xl transition-all duration-200 flex items-center space-x-2"
+                    >
+                        <i class="fas fa-sync-alt" id="scanIcon"></i>
+                        <span>重新扫描</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 统计信息 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 fade-in" style="animation-delay: 0.2s;">
+            <div class="filter-card rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-blue-400" id="totalCount">...</div>
+                <div class="text-gray-400 text-sm">总影片数</div>
+            </div>
+            <div class="filter-card rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-green-400" id="totalSize">...</div>
+                <div class="text-gray-400 text-sm">总文件大小</div>
+            </div>
+            <div class="filter-card rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-purple-400" id="actressesCount">...</div>
+                <div class="text-gray-400 text-sm">女优数量</div>
+            </div>
+            <div class="filter-card rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-yellow-400" id="lastScanTime">...</div>
+                <div class="text-gray-400 text-sm">最后扫描</div>
+            </div>
+        </div>
+        
+        <!-- 影片网格 -->
+        <div class="fade-in" style="animation-delay: 0.3s;">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold">
+                    影片列表
+                    <span class="text-gray-400 text-sm ml-2" id="filteredCount"></span>
+                </h2>
+                
+                <!-- 排序选择 -->
+                <div class="flex items-center space-x-4">
+                    <select 
+                        id="sortSelect" 
+                        class="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm"
+                        onchange="sortMovies()"
+                    >
+                        <option value="title">按标题排序</option>
+                        <option value="size">按文件大小排序</option>
+                        <option value="modified">按修改时间排序</option>
+                        <option value="actress">按女优排序</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 加载指示器 -->
+            <div id="loadingIndicator" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- 骨架屏 -->
+                <div class="movie-card rounded-2xl overflow-hidden loading-shimmer h-96"></div>
+                <div class="movie-card rounded-2xl overflow-hidden loading-shimmer h-96"></div>
+                <div class="movie-card rounded-2xl overflow-hidden loading-shimmer h-96"></div>
+                <div class="movie-card rounded-2xl overflow-hidden loading-shimmer h-96"></div>
+            </div>
+
+            <!-- 影片网格容器 -->
+            <div id="moviesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
+                <!-- 影片卡片将通过JavaScript动态添加 -->
+            </div>
+
+            <!-- 分页控件 -->
+            <div id="pagination" class="flex justify-center items-center space-x-2 mt-8 hidden">
+                <button onclick="changePage('prev')" class="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white hover:bg-gray-600/50">
+                    <i class="fas fa-chevron-left mr-2"></i>上一页
+                </button>
+                <span id="pageInfo" class="text-gray-400"></span>
+                <button onclick="changePage('next')" class="px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white hover:bg-gray-600/50">
+                    下一页<i class="fas fa-chevron-right ml-2"></i>
+                </button>
+            </div>
+
+            <!-- 无结果提示 -->
+            <div id="noResults" class="text-center py-16 hidden">
+                <i class="fas fa-search text-6xl text-gray-600 mb-4"></i>
+                <h3 class="text-xl font-medium text-gray-400 mb-2">未找到匹配的影片</h3>
+                <p class="text-gray-500">请尝试调整搜索条件或筛选选项</p>
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        let allMovies = [];
+        let filteredMovies = [];
+        let currentPage = 1;
+        const itemsPerPage = 100;
+        
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            loadLocalMovies();
+            loadStats();
+        });
+        
+        // 加载本地影片数据
+        async function loadLocalMovies() {
+            try {
+                document.getElementById('loadingIndicator').classList.remove('hidden');
+                document.getElementById('moviesGrid').classList.add('hidden');
+                document.getElementById('pagination').classList.add('hidden');
+                
+                // 使用更大的limit值确保能获取所有影片
+                const response = await fetch('/api/v1/local/movies?page=1&limit=1000');
+                const data = await response.json();
+                
+                console.log('API Response:', data);
+                
+                if (data.code === 'SUCCESS' && data.data.items) {
+                    allMovies = data.data.items;
+                    filteredMovies = [...allMovies];
+                    currentPage = 1;
+                    
+                    console.log('Loaded movies:', allMovies.length);
+                    
+                    // 隐藏加载指示器
+                    document.getElementById('loadingIndicator').classList.add('hidden');
+                    document.getElementById('moviesGrid').classList.remove('hidden');
+                    document.getElementById('pagination').classList.remove('hidden');
+                    
+                    // 更新女优筛选选项
+                    updateActressFilter();
+                    
+                    // 渲染影片
+                    renderMovies();
+                } else {
+                    showError('加载影片数据失败');
+                }
+            } catch (error) {
+                console.error('加载本地影片失败:', error);
+                showError('网络错误，请稍后重试');
+            }
+        }
+        
+        // 加载统计信息
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/v1/local/stats');
+                const data = await response.json();
+                
+                if (data.code === 'SUCCESS') {
+                    const stats = data.data;
+                    document.getElementById('totalCount').textContent = stats.total_movies || 0;
+                    document.getElementById('totalSize').textContent = formatFileSize(stats.total_size || 0);
+                    document.getElementById('actressesCount').textContent = stats.unique_actresses || 0;
+                    document.getElementById('lastScanTime').textContent = formatDate(stats.last_scan_time);
+                }
+            } catch (error) {
+                console.error('加载统计信息失败:', error);
+            }
+        }
+        
+        // 更新女优筛选选项
+        function updateActressFilter() {
+            const actressSet = new Set();
+            allMovies.forEach(movie => {
+                if (movie.actress) {
+                    movie.actress.split(',').forEach(actress => {
+                        actressSet.add(actress.trim());
+                    });
+                }
+            });
+            
+            const actressFilter = document.getElementById('actressFilter');
+            actressFilter.innerHTML = '<option value="">所有女优</option>';
+            
+            Array.from(actressSet).sort().forEach(actress => {
+                const option = document.createElement('option');
+                option.value = actress;
+                option.textContent = actress;
+                actressFilter.appendChild(option);
+            });
+        }
+        
+        // 筛选影片
+        function filterMovies() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const actressFilter = document.getElementById('actressFilter').value;
+            const formatFilter = document.getElementById('formatFilter').value;
+            
+            filteredMovies = allMovies.filter(movie => {
+                const matchesSearch = !searchTerm || 
+                    movie.title.toLowerCase().includes(searchTerm) ||
+                    movie.code.toLowerCase().includes(searchTerm) ||
+                    (movie.actress && movie.actress.toLowerCase().includes(searchTerm));
+                
+                const matchesActress = !actressFilter || 
+                    (movie.actress && movie.actress.includes(actressFilter));
+                
+                const matchesFormat = !formatFilter || movie.format === formatFilter;
+                
+                return matchesSearch && matchesActress && matchesFormat;
+            });
+            
+            // 重置到第一页
+            currentPage = 1;
+            renderMovies();
+            updateMovieCount();
+        }
+        
+        // 排序影片
+        function sortMovies() {
+            const sortBy = document.getElementById('sortSelect').value;
+            
+            filteredMovies.sort((a, b) => {
+                switch (sortBy) {
+                    case 'title':
+                        return a.title.localeCompare(b.title);
+                    case 'size':
+                        return (b.size || 0) - (a.size || 0);
+                    case 'modified':
+                        return new Date(b.modified) - new Date(a.modified);
+                    case 'actress':
+                        return (a.actress || '').localeCompare(b.actress || '');
+                    default:
+                        return 0;
+                }
+            });
+            
+            renderMovies();
+        }
+        
+        // 渲染影片列表
+        function renderMovies() {
+            const grid = document.getElementById('moviesGrid');
+            const noResults = document.getElementById('noResults');
+            const pagination = document.getElementById('pagination');
+            
+            console.log('Total movies:', allMovies.length);
+            console.log('Filtered movies:', filteredMovies.length);
+            console.log('Current page:', currentPage);
+            
+            if (filteredMovies.length === 0) {
+                grid.classList.add('hidden');
+                pagination.classList.add('hidden');
+                noResults.classList.remove('hidden');
+                return;
+            }
+            
+            noResults.classList.add('hidden');
+            grid.classList.remove('hidden');
+            pagination.classList.remove('hidden');
+            
+            // 计算当前页的影片
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredMovies.length);
+            const currentPageMovies = filteredMovies.slice(startIndex, endIndex);
+            
+            console.log('Page range:', startIndex, '-', endIndex);
+            console.log('Movies on current page:', currentPageMovies.length);
+            
+            grid.innerHTML = currentPageMovies.map((movie, index) => `
+                <div class="movie-card rounded-2xl overflow-hidden hover-scale slide-up" style="animation-delay: ${index * 0.05}s;">
+                    <div class="movie-poster h-80 relative overflow-hidden">
+                        ${movie.has_fanart ? `
+                            <img 
+                                src="${movie.fanart_url}" 
+                                alt="${movie.title}" 
+                                class="w-full h-full object-cover"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                            >
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                        ` : ''}
+                        <div class="absolute inset-0 flex items-center justify-center text-6xl text-gray-500 ${movie.has_fanart ? 'hidden' : ''}">
+                            <i class="fas fa-film"></i>
+                        </div>
+                        
+                        <!-- 格式标签 -->
+                        <div class="absolute top-3 left-3">
+                            <span class="px-2 py-1 bg-blue-600/80 text-white text-xs rounded-full font-medium">
+                                ${movie.format}
+                            </span>
+                        </div>
+                        
+                        <!-- 文件大小 -->
+                        <div class="absolute top-3 right-3">
+                            <span class="px-2 py-1 bg-gray-900/80 text-white text-xs rounded-full">
+                                ${formatFileSize(movie.size)}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 bg-gray-800/50 backdrop-blur">
+                        <h3 class="text-lg font-medium text-white mb-2 line-clamp-2" title="${movie.title}">
+                            ${movie.title}
+                        </h3>
+                        <div class="text-sm text-gray-300 space-y-1">
+                            ${movie.code ? `<p><i class="fas fa-tag mr-2"></i>${movie.code}</p>` : ''}
+                            ${movie.actress ? `<p><i class="fas fa-user mr-2"></i>${movie.actress}</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // 更新分页信息
+            updatePagination();
+            // 更新影片计数
+            updateMovieCount();
+        }
+        
+        // 更新分页信息
+        function updatePagination() {
+            const totalPages = Math.ceil(filteredMovies.length / itemsPerPage);
+            document.getElementById('pageInfo').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
+            
+            // 更新按钮状态
+            const prevButton = document.querySelector('button[onclick="changePage(\'prev\')"]');
+            const nextButton = document.querySelector('button[onclick="changePage(\'next\')"]');
+            
+            prevButton.disabled = currentPage === 1;
+            nextButton.disabled = currentPage === totalPages;
+            
+            prevButton.style.opacity = currentPage === 1 ? '0.5' : '1';
+            nextButton.style.opacity = currentPage === totalPages ? '0.5' : '1';
+        }
+
+        // 切换页面
+        function changePage(direction) {
+            const totalPages = Math.ceil(filteredMovies.length / itemsPerPage);
+            
+            if (direction === 'prev' && currentPage > 1) {
+                currentPage--;
+            } else if (direction === 'next' && currentPage < totalPages) {
+                currentPage++;
+            }
+            
+            renderMovies();
+            // 滚动到顶部
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // 更新影片计数
+        function updateMovieCount() {
+            const total = allMovies.length;
+            const filtered = filteredMovies.length;
+            document.getElementById('movieCount').textContent = `${filtered} 部影片`;
+            document.getElementById('filteredCount').textContent = filtered === total ? 
+                `(${total})` : 
+                `(已筛选: ${filtered}/${total})`;
+            
+            // 更新统计面板
+            document.getElementById('totalCount').textContent = total;
+        }
+
+        // 重新扫描本地影片
+        async function scanLocalMovies() {
+            const button = event.target.closest('button');
+            const icon = document.getElementById('scanIcon');
+            
+            // 添加加载动画
+            icon.classList.add('animate-spin');
+            button.disabled = true;
+            
+            try {
+                const response = await fetch('/api/v1/local/scan', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.code === 'SUCCESS') {
+                    // 重新加载数据
+                    await loadLocalMovies();
+                    await loadStats();
+                    alert('✅ 扫描完成！');
+                } else {
+                    alert('❌ 扫描失败：' + data.message);
+                }
+            } catch (error) {
+                alert('❌ 扫描失败：' + error.message);
+            } finally {
+                icon.classList.remove('animate-spin');
+                button.disabled = false;
+            }
+        }
+
+        // 打开影片详情
+        function openMovieDetails(code) {
+            // 这里可以后续添加影片详情功能
+            alert(`影片详情功能即将推出！\n番号：${code}`);
+        }
+        
+        // 显示错误信息
+        function showError(message) {
+            document.getElementById('loadingIndicator').innerHTML = `
+                <div class="col-span-full text-center py-16">
+                    <i class="fas fa-exclamation-triangle text-6xl text-red-400 mb-4"></i>
+                    <h3 class="text-xl font-medium text-red-400 mb-2">加载失败</h3>
+                    <p class="text-gray-400">${message}</p>
+                    <button 
+                        onclick="window.location.reload()" 
+                        class="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white transition-colors"
+                    >
+                        重新加载
+                    </button>
+                </div>
+            `;
+        }
+        
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '未知';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN');
+        }
+    </script>
+    <script src="static/js/privacy-mode.js"></script>
+</body>
+</html> 

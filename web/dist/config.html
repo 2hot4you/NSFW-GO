@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统配置 - NSFW-Go</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .config-tab {
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .config-tab.active {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .config-section {
+            display: none;
+        }
+        
+        .config-section.active {
+            display: block;
+        }
+        
+        .form-input, .form-select {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: rgba(59, 130, 246, 0.5);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .form-select option {
+            background: #1e1b4b;
+            color: white;
+        }
+        
+        .test-result {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-top: 8px;
+            display: none;
+        }
+        
+        .test-result.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .test-result.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .array-input {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .array-item {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .array-item input {
+            flex: 1;
+        }
+        
+        .backup-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .backup-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        /* 通知样式 */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            max-width: 300px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+        }
+        
+        .notification.error {
+            background: linear-gradient(135deg, #f44336 0%, #c62828 100%);
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen text-white">
+    <!-- 导航栏 -->
+    <nav class="glass-effect border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo 和标题 -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex-shrink-0">
+                        <a href="/" class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-gradient-to-r from-purple-400 to-blue-400 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-film text-white text-sm"></i>
+                            </div>
+                            <span class="text-xl font-bold">NSFW-Go</span>
+                        </a>
+                    </div>
+                    <div class="hidden md:block">
+                        <div class="ml-10 flex items-baseline space-x-4">
+                            <a href="/" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                                <i class="fas fa-home mr-2"></i>首页
+                            </a>
+                            <a href="/local-movies.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                                <i class="fas fa-folder-open mr-2"></i>本地影片
+                            </a>
+                            <a href="/rankings.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                                <i class="fas fa-trophy mr-2"></i>排行榜
+                            </a>
+                            <a href="/search.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                                <i class="fas fa-search mr-2"></i>搜索
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右侧按钮 -->
+                <div class="flex items-center space-x-4">
+                    <!-- 系统设置按钮 -->
+                    <button onclick="window.location.href='/config.html'" class="text-gray-300 hover:text-white p-2 rounded-lg transition-colors" title="系统设置">
+                        <i class="fas fa-cogs text-lg"></i>
+                    </button>
+                    
+                    <!-- 返回首页按钮 -->
+                    <button onclick="window.location.href='/'" class="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 px-4 py-2 rounded-lg transition-all">
+                        <i class="fas fa-home mr-2"></i>
+                        <span class="hidden sm:inline">返回首页</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区域 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 页面头部 -->
+        <div class="mb-8">
+            <div class="glass-effect rounded-2xl p-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold mb-2">
+                            <i class="fas fa-cogs mr-3 text-blue-400"></i>
+                            系统配置
+                        </h1>
+                        <p class="text-gray-400">管理系统配置和连接设置</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button onclick="loadConfig()" class="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 px-4 py-2 rounded-lg transition-all">
+                            <i class="fas fa-sync-alt mr-2"></i>重新加载
+                        </button>
+                        <button onclick="validateConfig()" class="bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-500/30 text-yellow-400 px-4 py-2 rounded-lg transition-all">
+                            <i class="fas fa-check-circle mr-2"></i>验证配置
+                        </button>
+                        <button onclick="saveConfig()" class="bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-all">
+                            <i class="fas fa-save mr-2"></i>保存配置
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 配置标签页 -->
+        <div class="mb-6">
+            <div class="glass-effect rounded-xl p-2">
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="switchTab('server')" class="config-tab active flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
+                        <i class="fas fa-server mr-2"></i>
+                        <span class="hidden sm:inline">服务器</span>
+                    </button>
+                    <button onclick="switchTab('database')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
+                        <i class="fas fa-database mr-2"></i>
+                        <span class="hidden sm:inline">数据库</span>
+                    </button>
+                    <button onclick="switchTab('redis')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
+                        <i class="fas fa-memory mr-2"></i>
+                        <span class="hidden sm:inline">Redis</span>
+                    </button>
+                    <button onclick="switchTab('telegram')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
+                        <i class="fab fa-telegram mr-2"></i>
+                        <span class="hidden sm:inline">Telegram</span>
+                    </button>
+                    <button onclick="switchTab('crawler')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
+                        <i class="fas fa-spider mr-2"></i>
+                        <span class="hidden sm:inline">爬虫</span>
+                    </button>
+                    <button onclick="switchTab('media')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
+                        <i class="fas fa-folder mr-2"></i>
+                        <span class="hidden sm:inline">媒体库</span>
+                    </button>
+                    <button onclick="switchTab('security')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
+                        <i class="fas fa-shield-alt mr-2"></i>
+                        <span class="hidden sm:inline">安全</span>
+                    </button>
+                    <button onclick="switchTab('notification')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
+                        <i class="fas fa-bell mr-2"></i>
+                        <span class="hidden sm:inline">通知</span>
+                    </button>
+                    <button onclick="switchTab('advanced')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
+                        <i class="fas fa-tools mr-2"></i>
+                        <span class="hidden sm:inline">高级</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 服务器配置 -->
+        <div id="server-section" class="config-section active">
+            <div class="glass-effect rounded-2xl p-8">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fas fa-server mr-3 text-blue-400"></i>
+                    服务器配置
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">监听地址</label>
+                        <input type="text" id="server-host" class="form-input w-full px-4 py-3 rounded-lg" placeholder="0.0.0.0">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">监听端口</label>
+                        <input type="number" id="server-port" class="form-input w-full px-4 py-3 rounded-lg" placeholder="8080">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">运行模式</label>
+                        <select id="server-mode" class="form-select w-full px-4 py-3 rounded-lg">
+                            <option value="debug">调试模式</option>
+                            <option value="release">生产模式</option>
+                            <option value="test">测试模式</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">读取超时</label>
+                        <input type="text" id="server-read-timeout" class="form-input w-full px-4 py-3 rounded-lg" placeholder="30s">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">写入超时</label>
+                        <input type="text" id="server-write-timeout" class="form-input w-full px-4 py-3 rounded-lg" placeholder="30s">
+                    </div>
+                    <div>
+                        <label class="flex items-center space-x-3 text-sm font-medium text-gray-300">
+                            <input type="checkbox" id="server-enable-cors" class="w-4 h-4 text-blue-600 bg-transparent border-gray-300 rounded focus:ring-blue-500">
+                            <span>启用 CORS</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="flex items-center space-x-3 text-sm font-medium text-gray-300">
+                            <input type="checkbox" id="server-enable-swagger" class="w-4 h-4 text-blue-600 bg-transparent border-gray-300 rounded focus:ring-blue-500">
+                            <span>启用 Swagger 文档</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据库配置 -->
+        <div id="database-section" class="config-section">
+            <div class="glass-effect rounded-2xl p-8">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fas fa-database mr-3 text-green-400"></i>
+                    数据库配置
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">数据库主机</label>
+                        <input type="text" id="database-host" class="form-input w-full px-4 py-3 rounded-lg" placeholder="localhost">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">数据库端口</label>
+                        <input type="number" id="database-port" class="form-input w-full px-4 py-3 rounded-lg" placeholder="5432">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">用户名</label>
+                        <input type="text" id="database-user" class="form-input w-full px-4 py-3 rounded-lg" placeholder="nsfw">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">密码</label>
+                        <input type="password" id="database-password" class="form-input w-full px-4 py-3 rounded-lg" placeholder="密码">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">数据库名称</label>
+                        <input type="text" id="database-dbname" class="form-input w-full px-4 py-3 rounded-lg" placeholder="nsfw_db">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">SSL模式</label>
+                        <select id="database-sslmode" class="form-select w-full px-4 py-3 rounded-lg">
+                            <option value="disable">禁用</option>
+                            <option value="require">要求</option>
+                            <option value="verify-ca">验证CA</option>
+                            <option value="verify-full">完全验证</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">最大连接数</label>
+                        <input type="number" id="database-max-open-conns" class="form-input w-full px-4 py-3 rounded-lg" placeholder="25">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">最大空闲连接数</label>
+                        <input type="number" id="database-max-idle-conns" class="form-input w-full px-4 py-3 rounded-lg" placeholder="10">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">连接最大生存时间（秒）</label>
+                        <input type="number" id="database-max-lifetime" class="form-input w-full px-4 py-3 rounded-lg" placeholder="3600">
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <button onclick="testDatabaseConnection()" class="bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-all">
+                        <i class="fas fa-plug mr-2"></i>测试数据库连接
+                    </button>
+                    <div id="database-test-result" class="test-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Redis配置 -->
+        <div id="redis-section" class="config-section">
+            <div class="glass-effect rounded-2xl p-8">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fas fa-memory mr-3 text-red-400"></i>
+                    Redis配置
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Redis主机</label>
+                        <input type="text" id="redis-host" class="form-input w-full px-4 py-3 rounded-lg" placeholder="localhost">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Redis端口</label>
+                        <input type="number" id="redis-port" class="form-input w-full px-4 py-3 rounded-lg" placeholder="6379">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Redis密码</label>
+                        <input type="password" id="redis-password" class="form-input w-full px-4 py-3 rounded-lg" placeholder="Redis密码（可选）">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">数据库编号</label>
+                        <input type="number" id="redis-db" class="form-input w-full px-4 py-3 rounded-lg" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">连接池大小</label>
+                        <input type="number" id="redis-pool-size" class="form-input w-full px-4 py-3 rounded-lg" placeholder="10">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">最小空闲连接数</label>
+                        <input type="number" id="redis-min-idle-conns" class="form-input w-full px-4 py-3 rounded-lg" placeholder="5">
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <button onclick="testRedisConnection()" class="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 px-4 py-2 rounded-lg transition-all">
+                        <i class="fas fa-plug mr-2"></i>测试Redis连接
+                    </button>
+                    <div id="redis-test-result" class="test-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Telegram配置 -->
+        <div id="telegram-section" class="config-section">
+            <div class="glass-effect rounded-2xl p-8">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fab fa-telegram mr-3 text-blue-400"></i>
+                    Telegram Bot配置
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="flex items-center space-x-3 text-sm font-medium text-gray-300 mb-4">
+                            <input type="checkbox" id="telegram-enabled" class="w-4 h-4 text-blue-600 bg-transparent border-gray-300 rounded focus:ring-blue-500">
+                            <span>启用 Telegram Bot</span>
+                        </label>
+                    </div>
+                    <div></div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Bot Token</label>
+                        <input type="password" id="telegram-token" class="form-input w-full px-4 py-3 rounded-lg" placeholder="从 @BotFather 获取">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Webhook URL（可选）</label>
+                        <input type="text" id="telegram-webhook-url" class="form-input w-full px-4 py-3 rounded-lg" placeholder="https://your-domain.com/webhook">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">管理员用户ID列表</label>
+                        <div id="telegram-admin-ids" class="array-input mb-4">
+                            <!-- 动态生成 -->
+                        </div>
+                        <button type="button" onclick="addAdminId()" class="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 px-4 py-2 rounded-lg transition-all text-sm">
+                            <i class="fas fa-plus mr-2"></i>添加管理员ID
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <button onclick="testTelegramConnection()" class="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 px-4 py-2 rounded-lg transition-all">
+                        <i class="fas fa-plug mr-2"></i>测试Telegram连接
+                    </button>
+                    <div id="telegram-test-result" class="test-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 爬虫配置 -->
+        <div id="crawler-section" class="config-section">
+            <div class="glass-effect rounded-2xl p-8">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fas fa-spider mr-3 text-purple-400"></i>
+                    爬虫配置
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">User-Agent 列表</label>
+                        <div id="crawler-user-agents" class="array-input mb-4">
+                            <!-- 动态生成 -->
+                        </div>
+                        <button type="button" onclick="addUserAgent()" class="bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-400 px-4 py-2 rounded-lg transition-all text-sm">
+                            <i class="fas fa-plus mr-2"></i>添加User-Agent
+                        </button>
+                    </div>
+                    <div>
+                        <label class="flex items-center space-x-3 text-sm font-medium text-gray-300 mb-4">
+                            <input type="checkbox" id="crawler-proxy-enabled" class="w-4 h-4 text-purple-600 bg-transparent border-gray-300 rounded focus:ring-purple-500">
+                            <span>启用代理</span>
+                        </label>
+                    </div>
+                    <div></div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">代理列表</label>
+                        <div id="crawler-proxy-list" class="array-input mb-4">
+                            <!-- 动态生成 -->
+                        </div>
+                        <button type="button" onclick="addProxy()" class="bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-400 px-4 py-2 rounded-lg transition-all text-sm">
+                            <i class="fas fa-plus mr-2"></i>添加代理
+                        </button>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">请求间隔</label>
+                        <input type="text" id="crawler-request-delay" class="form-input w-full px-4 py-3 rounded-lg" placeholder="2s">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">重试次数</label>
+                        <input type="number" id="crawler-retry-count" class="form-input w-full px-4 py-3 rounded-lg" placeholder="3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">请求超时</label>
+                        <input type="text" id="crawler-timeout" class="form-input w-full px-4 py-3 rounded-lg" placeholder="30s">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">最大并发数</label>
+                        <input type="number" id="crawler-concurrent-max" class="form-input w-full px-4 py-3 rounded-lg" placeholder="5">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 媒体库配置 -->
+        <div id="media-section" class="config-section">
+            <div class="glass-effect rounded-2xl p-8">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fas fa-folder mr-3 text-yellow-400"></i>
+                    媒体库配置
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">媒体库基础路径</label>
+                        <input type="text" id="media-base-path" class="form-input w-full px-4 py-3 rounded-lg" placeholder="/MediaCenter">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">扫描间隔（小时）</label>
+                        <input type="number" id="media-scan-interval" class="form-input w-full px-4 py-3 rounded-lg" placeholder="24">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">支持的文件扩展名</label>
+                        <div id="media-supported-exts" class="array-input mb-4">
+                            <!-- 动态生成 -->
+                        </div>
+                        <button type="button" onclick="addMediaExt()" class="bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-500/30 text-yellow-400 px-4 py-2 rounded-lg transition-all text-sm">
+                            <i class="fas fa-plus mr-2"></i>添加扩展名
+                        </button>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">最小文件大小（MB）</label>
+                        <input type="number" id="media-min-file-size" class="form-input w-full px-4 py-3 rounded-lg" placeholder="100">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">最大文件大小（MB）</label>
+                        <input type="number" id="media-max-file-size" class="form-input w-full px-4 py-3 rounded-lg" placeholder="10240">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 安全配置 -->
+        <div id="security-section" class="config-section">
+            <div class="glass-effect rounded-2xl p-8">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fas fa-shield-alt mr-3 text-green-400"></i>
+                    安全配置
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">JWT密钥</label>
+                        <input type="password" id="security-jwt-secret" class="form-input w-full px-4 py-3 rounded-lg" placeholder="请设置安全的密钥">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">JWT过期时间</label>
+                        <input type="text" id="security-jwt-expiry" class="form-input w-full px-4 py-3 rounded-lg" placeholder="24h">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">密码盐值</label>
+                        <input type="password" id="security-password-salt" class="form-input w-full px-4 py-3 rounded-lg" placeholder="密码盐值">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">API限流（每秒请求数）</label>
+                        <input type="number" id="security-rate-limit-rps" class="form-input w-full px-4 py-3 rounded-lg" placeholder="100">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">允许访问的IP列表</label>
+                        <div id="security-allowed-ips" class="array-input mb-4">
+                            <!-- 动态生成 -->
+                        </div>
+                        <button type="button" onclick="addAllowedIP()" class="bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-all text-sm">
+                            <i class="fas fa-plus mr-2"></i>添加IP
+                        </button>
+                    </div>
+                    <div>
+                        <label class="flex items-center space-x-3 text-sm font-medium text-gray-300">
+                            <input type="checkbox" id="security-enable-auth" class="w-4 h-4 text-green-600 bg-transparent border-gray-300 rounded focus:ring-green-500">
+                            <span>启用身份验证</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 通知配置 -->
+        <div id="notification-section" class="config-section">
+            <div class="glass-effect rounded-2xl p-8">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fas fa-bell mr-3 text-orange-400"></i>
+                    通知配置
+                </h2>
+                
+                <!-- Telegram通知 -->
+                <div class="bg-black/20 rounded-xl p-6 border border-white/10 mb-6">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="fab fa-telegram mr-2 text-blue-400"></i>
+                        Telegram通知
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="flex items-center space-x-3 text-sm font-medium text-gray-300 mb-4">
+                                <input type="checkbox" id="notification-telegram-enabled" class="w-4 h-4 text-blue-600 bg-transparent border-gray-300 rounded focus:ring-blue-500">
+                                <span>启用Telegram通知</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">通知聊天ID</label>
+                            <input type="text" id="notification-telegram-chat-id" class="form-input w-full px-4 py-3 rounded-lg" placeholder="聊天ID">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 邮件通知 -->
+                <div class="bg-black/20 rounded-xl p-6 border border-white/10">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="fas fa-envelope mr-2 text-green-400"></i>
+                        邮件通知
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div>
+                            <label class="flex items-center space-x-3 text-sm font-medium text-gray-300 mb-4">
+                                <input type="checkbox" id="notification-email-enabled" class="w-4 h-4 text-green-600 bg-transparent border-gray-300 rounded focus:ring-green-500">
+                                <span>启用邮件通知</span>
+                            </label>
+                        </div>
+                        <div></div>
+                        <div></div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">SMTP服务器</label>
+                            <input type="text" id="notification-email-smtp-host" class="form-input w-full px-4 py-3 rounded-lg" placeholder="smtp.gmail.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">SMTP端口</label>
+                            <input type="number" id="notification-email-smtp-port" class="form-input w-full px-4 py-3 rounded-lg" placeholder="587">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">邮箱用户名</label>
+                            <input type="text" id="notification-email-username" class="form-input w-full px-4 py-3 rounded-lg" placeholder="用户名">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">邮箱密码</label>
+                            <input type="password" id="notification-email-password" class="form-input w-full px-4 py-3 rounded-lg" placeholder="密码">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">发件人邮箱</label>
+                            <input type="email" id="notification-email-from" class="form-input w-full px-4 py-3 rounded-lg" placeholder="sender@example.com">
+                        </div>
+                        <div></div>
+                        <div class="md:col-span-2 lg:col-span-3">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">收件人邮箱列表</label>
+                            <div id="notification-email-to" class="array-input mb-4">
+                                <!-- 动态生成 -->
+                            </div>
+                            <button type="button" onclick="addEmailTo()" class="bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-all text-sm">
+                                <i class="fas fa-plus mr-2"></i>添加收件人
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <button onclick="testEmailConnection()" class="bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-all">
+                            <i class="fas fa-plug mr-2"></i>测试邮件连接
+                        </button>
+                        <div id="email-test-result" class="test-result"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="advanced-section" class="config-section">
+            <div class="glass-effect rounded-2xl p-8">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fas fa-tools mr-3 text-gray-400"></i>
+                    高级配置
+                </h2>
+                
+                <!-- 日志配置 -->
+                <div class="bg-black/20 rounded-xl p-6 border border-white/10 mb-6">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="fas fa-file-alt mr-2 text-yellow-400"></i>
+                        日志配置
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">日志级别</label>
+                            <select id="log-level" class="form-select w-full px-4 py-3 rounded-lg">
+                                <option value="debug">调试</option>
+                                <option value="info">信息</option>
+                                <option value="warn">警告</option>
+                                <option value="error">错误</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">日志格式</label>
+                            <select id="log-format" class="form-select w-full px-4 py-3 rounded-lg">
+                                <option value="json">JSON格式</option>
+                                <option value="text">文本格式</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">输出目标</label>
+                            <select id="log-output" class="form-select w-full px-4 py-3 rounded-lg">
+                                <option value="stdout">标准输出</option>
+                                <option value="file">文件</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">日志文件路径</label>
+                            <input type="text" id="log-filename" class="form-input w-full px-4 py-3 rounded-lg" placeholder="logs/nsfw-go.log">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">单个文件最大大小（MB）</label>
+                            <input type="number" id="log-max-size" class="form-input w-full px-4 py-3 rounded-lg" placeholder="100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">保留文件数量</label>
+                            <input type="number" id="log-max-backups" class="form-input w-full px-4 py-3 rounded-lg" placeholder="7">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">保留天数</label>
+                            <input type="number" id="log-max-age" class="form-input w-full px-4 py-3 rounded-lg" placeholder="30">
+                        </div>
+                        <div>
+                            <label class="flex items-center space-x-3 text-sm font-medium text-gray-300">
+                                <input type="checkbox" id="log-compress" class="w-4 h-4 text-yellow-600 bg-transparent border-gray-300 rounded focus:ring-yellow-500">
+                                <span>压缩旧日志文件</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 开发环境配置 -->
+                <div class="bg-black/20 rounded-xl p-6 border border-white/10 mb-6">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="fas fa-code mr-2 text-purple-400"></i>
+                        开发环境配置
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="flex items-center space-x-3 text-sm font-medium text-gray-300">
+                                <input type="checkbox" id="dev-enable-debug-routes" class="w-4 h-4 text-purple-600 bg-transparent border-gray-300 rounded focus:ring-purple-500">
+                                <span>启用调试路由</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="flex items-center space-x-3 text-sm font-medium text-gray-300">
+                                <input type="checkbox" id="dev-enable-profiling" class="w-4 h-4 text-purple-600 bg-transparent border-gray-300 rounded focus:ring-purple-500">
+                                <span>启用性能分析</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="flex items-center space-x-3 text-sm font-medium text-gray-300">
+                                <input type="checkbox" id="dev-auto-reload" class="w-4 h-4 text-purple-600 bg-transparent border-gray-300 rounded focus:ring-purple-500">
+                                <span>自动重载</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 配置备份管理 -->
+                <div class="bg-black/20 rounded-xl p-6 border border-white/10">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="fas fa-archive mr-2 text-blue-400"></i>
+                        配置备份管理
+                    </h3>
+                    <div class="flex items-center justify-between mb-4">
+                        <p class="text-gray-400">管理配置文件备份和恢复</p>
+                        <button onclick="loadBackups()" class="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 px-4 py-2 rounded-lg transition-all">
+                            <i class="fas fa-sync-alt mr-2"></i>刷新备份列表
+                        </button>
+                    </div>
+                    <div id="backup-list" class="max-h-64 overflow-y-auto">
+                        <!-- 备份列表将在这里动态生成 -->
+                        <div class="text-center py-8">
+                            <i class="fas fa-archive text-4xl text-gray-600 mb-2"></i>
+                            <p class="text-gray-400">正在加载备份列表...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 通知容器 -->
+    <div id="notificationContainer"></div>
+
+    <script src="/static/js/config.js"></script>
+</body>
+</html> 

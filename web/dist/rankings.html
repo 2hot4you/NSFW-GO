@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAV排行榜 - NSFW-Go</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .hover-scale {
+            transition: transform 0.3s ease;
+        }
+        .hover-scale:hover {
+            transform: scale(1.05);
+        }
+        .rank-badge {
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 12px;
+        }
+        .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA500); }
+        .rank-2 { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); }
+        .rank-3 { background: linear-gradient(135deg, #CD7F32, #B87333); }
+        .rank-other { background: linear-gradient(135deg, #6B7280, #4B5563); }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="bg-gray-800 border-b border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-xl font-bold text-white">
+                        <i class="fas fa-video mr-2"></i>NSFW-Go
+                    </a>
+                    <span class="text-gray-300">排行榜</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-gray-300 hover:text-white">首页</a>
+                    <a href="/local-movies.html" class="text-gray-300 hover:text-white">本地影视库</a>
+                </div>
+                <div class="flex items-center space-x-4" id="nav-right-privacy-anchor">
+                    <!-- 系统设置按钮 -->
+                    <button onclick="window.location.href='/config.html'" class="text-gray-300 hover:text-white p-2 rounded-lg transition-colors" title="系统设置">
+                        <i class="fas fa-cogs text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 页面标题 -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-white mb-2">
+                <i class="fas fa-trophy mr-3 text-yellow-500"></i>JAV影片排行榜
+            </h1>
+            <p class="text-gray-400">每日12:00自动更新，本地已存在影片会特别标注</p>
+        </div>
+
+        <!-- 控制按钮 -->
+        <div class="mb-6 flex space-x-4">
+            <button id="refresh-btn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg">
+                <i class="fas fa-sync-alt mr-2"></i>刷新数据
+            </button>
+            <button id="crawl-btn" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg">
+                <i class="fas fa-spider mr-2"></i>手动爬取
+            </button>
+        </div>
+
+        <!-- 排行榜类型选择 -->
+        <div class="mb-6">
+            <div class="flex space-x-2">
+                <button class="ranking-tab bg-blue-600 text-white px-6 py-3 rounded-lg" data-type="daily">日榜</button>
+                <button class="ranking-tab bg-gray-600 text-gray-300 px-6 py-3 rounded-lg" data-type="weekly">周榜</button>
+                <button class="ranking-tab bg-gray-600 text-gray-300 px-6 py-3 rounded-lg" data-type="monthly">月榜</button>
+                <button class="ranking-tab bg-gray-600 text-gray-300 px-6 py-3 rounded-lg" data-type="local">本地已有</button>
+            </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loading" class="text-center py-12">
+            <i class="fas fa-spinner fa-spin text-4xl text-blue-500 mb-4"></i>
+            <p class="text-gray-400">正在加载排行榜数据...</p>
+        </div>
+
+        <!-- 排行榜内容 -->
+        <div id="rankings-container" class="hidden">
+            <div id="rankings-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            </div>
+        </div>
+
+        <!-- 空状态 -->
+        <div id="empty-state" class="hidden text-center py-12">
+            <i class="fas fa-inbox text-4xl text-gray-500 mb-4"></i>
+            <p class="text-gray-400">暂无排行榜数据</p>
+            <button id="trigger-crawl" class="mt-4 bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg">
+                立即爬取
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentRankType = 'daily';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRankings(currentRankType);
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // 排行榜类型切换
+            document.querySelectorAll('.ranking-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const rankType = this.dataset.type;
+                    switchRankType(rankType);
+                });
+            });
+
+            // 按钮事件
+            document.getElementById('refresh-btn').addEventListener('click', () => loadRankings(currentRankType));
+            document.getElementById('crawl-btn').addEventListener('click', triggerCrawl);
+            document.getElementById('trigger-crawl').addEventListener('click', triggerCrawl);
+        }
+
+        function switchRankType(rankType) {
+            currentRankType = rankType;
+            
+            // 更新选项卡样式
+            document.querySelectorAll('.ranking-tab').forEach(tab => {
+                if (tab.dataset.type === rankType) {
+                    tab.className = 'ranking-tab bg-blue-600 text-white px-6 py-3 rounded-lg';
+                } else {
+                    tab.className = 'ranking-tab bg-gray-600 text-gray-300 px-6 py-3 rounded-lg';
+                }
+            });
+
+            // 加载数据
+            if (rankType === 'local') {
+                loadLocalExists();
+            } else {
+                loadRankings(rankType);
+            }
+        }
+
+        async function loadRankings(rankType) {
+            showLoading();
+            
+            try {
+                const response = await fetch(`/api/v1/rankings?type=${rankType}&limit=50`);
+                const result = await response.json();
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    renderRankings(result.data);
+                } else {
+                    showEmptyState();
+                }
+            } catch (error) {
+                console.error('加载排行榜失败:', error);
+                showEmptyState();
+            }
+        }
+
+        async function loadLocalExists() {
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/v1/rankings/local?type=all&limit=100');
+                const result = await response.json();
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    renderRankings(result.data);
+                } else {
+                    showEmptyState();
+                }
+            } catch (error) {
+                console.error('加载本地已存在影片失败:', error);
+                showEmptyState();
+            }
+        }
+
+        function renderRankings(rankings) {
+            const container = document.getElementById('rankings-grid');
+            
+            container.innerHTML = rankings.map((item, index) => {
+                const position = item.position || (index + 1);
+                const badgeColor = position === 1 ? 'bg-yellow-500' : 
+                                 position === 2 ? 'bg-gray-400' : 
+                                 position === 3 ? 'bg-orange-400' : 'bg-gray-600';
+                
+                return `
+                    <div class="bg-gray-800 rounded-xl overflow-hidden relative">
+                        <div class="absolute top-2 left-2 ${badgeColor} text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold z-10">
+                            ${position}
+                        </div>
+                        
+                        ${item.local_exists ? `
+                            <div class="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold z-10">
+                                已有
+                            </div>
+                        ` : ''}
+                        
+                        <div class="w-full h-48 bg-gray-700 flex items-center justify-center">
+                            ${item.cover_url ? `
+                                <img src="${item.cover_url}" alt="${item.title}" class="w-full h-full object-cover">
+                            ` : `
+                                <i class="fas fa-image text-4xl text-gray-500"></i>
+                            `}
+                        </div>
+                        
+                        <div class="p-4">
+                            <h3 class="font-bold text-white text-sm mb-2 truncate" title="${item.title}">
+                                ${item.title}
+                            </h3>
+                            <div class="flex items-center justify-between text-xs text-gray-400">
+                                <span class="bg-gray-700 px-2 py-1 rounded">${item.code || 'N/A'}</span>
+                                <span>${item.rank_type || 'daily'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            hideLoading();
+            document.getElementById('rankings-container').classList.remove('hidden');
+        }
+
+        async function triggerCrawl() {
+            const btn = event.target;
+            const originalText = btn.textContent;
+            
+            btn.textContent = '爬取中...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/v1/rankings/crawl', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('爬取任务已启动，请稍后刷新页面查看结果');
+                    setTimeout(() => loadRankings(currentRankType), 5000);
+                } else {
+                    alert('爬取失败: ' + (result.error || '未知错误'));
+                }
+            } catch (error) {
+                console.error('触发爬取失败:', error);
+                alert('触发爬取失败: ' + error.message);
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('rankings-container').classList.add('hidden');
+            document.getElementById('empty-state').classList.add('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function showEmptyState() {
+            hideLoading();
+            document.getElementById('rankings-container').classList.add('hidden');
+            document.getElementById('empty-state').classList.remove('hidden');
+        }
+    </script>
+    <script src="static/js/privacy-mode.js"></script>
+</body>
+</html> 

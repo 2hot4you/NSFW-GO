@@ -1,0 +1,74 @@
+# 二进制文件
+nsfw-go
+nsfw-go-api
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 测试二进制文件
+*.test
+
+# 输出的二进制文件 (如果名称不是 .gitignore)
+# bin/
+
+# 依赖模块
+vendor/
+
+# Go workspace文件
+go.work
+
+# IDE相关文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统相关文件
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+logs/
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 配置文件 (包含敏感信息)
+config.yaml
+.env
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# 调试文件
+debug
+debug_*
+test_*
+
+# 媒体文件目录 (太大不适合提交)
+media/
+videos/
+images/
+
+# Docker相关
+.dockerignore
+
+# 备份文件
+*.bak
+*.backup
+*.backup.*
+README.backup.md
+config.yaml.backup.*
+
+# 压缩文件
+*.zip
+*.tar.gz
+*.rar 

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NSFW-Go 智能影视库管理系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .hover-scale {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .hover-scale:hover {
+            transform: scale(1.02);
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+            opacity: 0;
+        }
+        
+        .slide-up {
+            animation: slideUp 0.6s ease-out forwards;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes slideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+        }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        
+        .search-modal {
+            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.7);
+        }
+        
+        .search-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .search-input:focus {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .status-dot {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        .stats-card {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="gradient-bg text-white min-h-screen overflow-x-hidden">
+    <!-- 搜索模态框 -->
+    <div id="searchModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="w-full max-w-lg glass-effect rounded-2xl transform transition-all duration-300 scale-95 opacity-0" id="searchModalContent">
+            <!-- 标题栏 -->
+            <div class="flex items-center justify-between p-6 border-b border-white/10">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-search text-blue-400 text-xl"></i>
+                    <h3 class="text-lg font-medium">快速搜索</h3>
+                </div>
+                <button onclick="closeSearchModal()" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+        </div>
+        
+            <!-- 搜索输入区域 -->
+            <div class="p-6">
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="searchInput"
+                        placeholder="搜索影片、女优或番号..." 
+                        class="w-full px-4 py-4 pr-12 search-input rounded-xl text-white placeholder-gray-300 text-lg"
+                    >
+                    <button 
+                        onclick="performQuickSearch()" 
+                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                        <i class="fas fa-arrow-right text-lg"></i>
+                    </button>
+                </div>
+                
+                <!-- 快捷键提示 -->
+                <div class="mt-4 flex items-center justify-between text-sm text-gray-400">
+                    <div class="flex items-center space-x-2">
+                        <kbd class="px-2 py-1 bg-gray-700/50 rounded border border-gray-600">Enter</kbd>
+                        <span>搜索</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <kbd class="px-2 py-1 bg-gray-700/50 rounded border border-gray-600">Esc</kbd>
+                        <span>关闭</span>
+                    </div>
+                </div>
+                
+                <!-- 搜索提示 -->
+                <div class="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                    <div class="flex items-start space-x-2">
+                        <i class="fas fa-lightbulb text-blue-400 mt-0.5"></i>
+                        <div class="text-sm text-blue-300">
+                            <p class="font-medium mb-1">搜索小贴士：</p>
+                            <ul class="space-y-1 text-xs text-blue-200">
+                                <li>• 输入番号：如 "SONE-593" 精确查找</li>
+                                <li>• 输入女优名：如 "河北彩花" 查找相关影片</li>
+                                <li>• 输入关键词：如 "SSIS" 模糊搜索</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 简化导航栏 -->
+    <nav class="glass-effect sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <h1 class="text-2xl font-bold">
+                        <i class="fas fa-video mr-2 text-blue-400"></i>
+                        NSFW-Go
+                    </h1>
+                    <span class="text-sm text-gray-400 hidden sm:block">智能影视库管理系统</span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- 搜索按钮 -->
+                    <button 
+                        onclick="openSearchModal()"
+                        class="flex items-center space-x-2 px-4 py-2 glass-effect rounded-lg hover:bg-white/10 transition-all duration-200"
+                    >
+                        <i class="fas fa-search text-gray-300"></i>
+                        <span class="hidden sm:block text-sm text-gray-300">搜索...</span>
+                        <span class="hidden sm:block text-xs text-gray-500 ml-2">⌘K</span>
+                    </button>
+                    
+                    <!-- 状态指示器 -->
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-green-400 rounded-full status-dot"></div>
+                        <span class="text-sm text-gray-400 hidden sm:block">在线</span>
+                    </div>
+                    
+                    <!-- 设置按钮 -->
+                    <a href="/config.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                        <i class="fas fa-cogs mr-2"></i><span class="hidden sm:inline">设置</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 进度条 -->
+    <div id="statsProgress" class="w-full bg-gray-700 h-1 hidden">
+        <div class="progress-bar bg-blue-500 h-1 transition-all duration-300" style="width: 0%"></div>
+    </div>
+
+    <!-- 主要内容区域 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-16">
+        <!-- 欢迎标题 -->
+        <section class="text-center">
+            <div class="fade-in">
+                <h1 class="text-5xl md:text-6xl font-bold mb-6">
+                    智能影视库
+                    <span class="block text-blue-400 mt-2">管理系统</span>
+                </h1>
+                <p class="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+                    基于Go + Vue3的现代化JAV影片管理平台，支持自动爬取、智能分类、下载管理和本地库管理
+                </p>
+            </div>
+        </section>
+
+        <!-- 影片仓库统计 -->
+        <section class="mb-12">
+            <div class="fade-in" style="animation-delay: 0.2s;">
+                <h2 class="text-3xl font-bold mb-8 text-center">
+                    影片仓库
+                    <span class="block text-lg font-normal text-gray-400 mt-2">实时统计影片收藏状况</span>
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- 本地影片数量 -->
+                    <div class="stat-card rounded-2xl p-6 hover-scale">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400 mb-1">本地影片</p>
+                                <p class="text-3xl font-bold text-blue-400" id="localMovieCount">-</p>
+                                <p class="text-xs text-gray-500">已收藏影片</p>
+                            </div>
+                            <div class="p-3 bg-blue-500/20 rounded-full">
+                                <i class="fas fa-folder-open text-2xl text-blue-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 日榜统计 -->
+                    <div class="stat-card rounded-2xl p-6 hover-scale">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400 mb-1">日榜</p>
+                                <p class="text-2xl font-bold text-yellow-400">
+                                    <span id="dailyLocal">-</span>/<span id="dailyTotal">-</span>
+                                </p>
+                                <p class="text-xs text-gray-500">本地/总数</p>
+                            </div>
+                            <div class="p-3 bg-yellow-500/20 rounded-full">
+                                <i class="fas fa-calendar-day text-2xl text-yellow-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 周榜统计 -->
+                    <div class="stat-card rounded-2xl p-6 hover-scale">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400 mb-1">周榜</p>
+                                <p class="text-2xl font-bold text-green-400">
+                                    <span id="weeklyLocal">-</span>/<span id="weeklyTotal">-</span>
+                                </p>
+                                <p class="text-xs text-gray-500">本地/总数</p>
+                            </div>
+                            <div class="p-3 bg-green-500/20 rounded-full">
+                                <i class="fas fa-calendar-week text-2xl text-green-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 月榜统计 -->
+                    <div class="stat-card rounded-2xl p-6 hover-scale">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400 mb-1">月榜</p>
+                                <p class="text-2xl font-bold text-purple-400">
+                                    <span id="monthlyLocal">-</span>/<span id="monthlyTotal">-</span>
+                                </p>
+                                <p class="text-xs text-gray-500">本地/总数</p>
+                            </div>
+                            <div class="p-3 bg-purple-500/20 rounded-full">
+                                <i class="fas fa-calendar-alt text-2xl text-purple-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+            
+            <!-- 快速操作 -->
+        <section class="mb-12">
+            <div class="fade-in" style="animation-delay: 0.4s;">
+                <h2 class="text-3xl font-bold mb-8 text-center">
+                    快速操作
+                    <span class="block text-lg font-normal text-gray-400 mt-2">一键访问主要功能</span>
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- 影片搜索 -->
+                    <div class="feature-card rounded-2xl p-8 hover-scale cursor-pointer" onclick="window.location.href='/search.html'">
+                        <div class="text-center">
+                            <div class="p-6 bg-green-500/20 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                                <i class="fas fa-search text-3xl text-green-400"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-3">影片搜索</h3>
+                            <p class="text-gray-400 mb-4">全库智能搜索</p>
+                            <div class="flex justify-center items-center text-sm text-green-400">
+                                <span>开始搜索</span>
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 本地影视库 -->
+                    <div class="feature-card rounded-2xl p-8 hover-scale cursor-pointer" onclick="window.location.href='/local-movies.html'">
+                        <div class="text-center">
+                            <div class="p-6 bg-blue-500/20 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                                <i class="fas fa-folder-open text-3xl text-blue-400"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-3">本地影视库</h3>
+                            <p class="text-gray-400 mb-4">管理本地影片文件</p>
+                            <div class="flex justify-center items-center text-sm text-blue-400">
+                                <span>进入管理</span>
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 影片排行榜 -->
+                    <div class="feature-card rounded-2xl p-8 hover-scale cursor-pointer" onclick="window.location.href='/rankings.html'">
+                        <div class="text-center">
+                            <div class="p-6 bg-purple-500/20 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                                <i class="fas fa-trophy text-3xl text-purple-400"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-3">影片排行榜</h3>
+                            <p class="text-gray-400 mb-4">JAVDb热门排行</p>
+                            <div class="flex justify-center items-center text-sm text-purple-400">
+                                <span>查看排行</span>
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 系统配置 -->
+                    <div class="feature-card rounded-2xl p-8 hover-scale cursor-pointer" onclick="window.location.href='/config.html'">
+                        <div class="text-center">
+                            <div class="p-6 bg-orange-500/20 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                                <i class="fas fa-cogs text-3xl text-orange-400"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-3">系统配置</h3>
+                            <p class="text-gray-400 mb-4">配置管理和连接测试</p>
+                            <div class="flex justify-center items-center text-sm text-orange-400">
+                                <span>进入配置</span>
+                                <i class="fas fa-arrow-right ml-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+            
+        <!-- 底部操作区域 -->
+        <section>
+            <div class="fade-in" style="animation-delay: 0.6s;">
+                <h2 class="text-3xl font-bold mb-8 text-center">
+                    系统操作
+                    <span class="block text-lg font-normal text-gray-400 mt-2">手动触发和维护功能</span>
+                </h2>
+                
+                <div class="flex justify-center">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
+                        <!-- 刷新统计 -->
+                        <button 
+                            onclick="refreshStats()"
+                            class="flex items-center justify-center space-x-3 px-8 py-4 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-xl transition-all duration-200 group"
+                        >
+                            <i class="fas fa-sync-alt text-blue-400 group-hover:animate-spin"></i>
+                            <span class="font-medium">刷新统计</span>
+                        </button>
+
+                        <!-- 系统检查 -->
+                        <button 
+                            onclick="checkSystem()"
+                            class="flex items-center justify-center space-x-3 px-8 py-4 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 rounded-xl transition-all duration-200 group"
+                        >
+                            <i class="fas fa-stethoscope text-green-400"></i>
+                            <span class="font-medium">系统检查</span>
+                        </button>
+                </div>
+                </div>
+            </div>
+        </section>
+    </main>
+        
+    <script>
+        let searchModalOpen = false;
+        
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSystemStats();
+        });
+
+        // 加载系统统计
+        async function loadSystemStats() {
+            try {
+                const response = await fetch('/api/v1/stats');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.code === 'SUCCESS' && data.data) {
+                    // 安全地更新DOM元素
+                    const updateElement = (id, value) => {
+                        const element = document.getElementById(id);
+                        if (element) {
+                            element.textContent = value;
+                        }
+                    };
+                    
+                    // 更新本地影片数量
+                    updateElement('localMovieCount', data.data.local_movies || 0);
+                    
+                    // 更新各类型排行榜统计
+                    updateElement('dailyTotal', data.data.daily_total || 0);
+                    updateElement('dailyLocal', data.data.daily_local || 0);
+                    updateElement('weeklyTotal', data.data.weekly_total || 0);
+                    updateElement('weeklyLocal', data.data.weekly_local || 0);
+                    updateElement('monthlyTotal', data.data.monthly_total || 0);
+                    updateElement('monthlyLocal', data.data.monthly_local || 0);
+                    
+                    // 只在有lastScanTime元素时才更新（用于本地影片页面）
+                    if (document.getElementById('lastScanTime')) {
+                        const lastScanTime = data.data.last_scan_time || '从未扫描';
+                        updateElement('lastScanTime', lastScanTime);
+                    }
+                } else {
+                    throw new Error(data.message || '返回数据格式错误');
+                }
+            } catch (error) {
+                console.error('获取系统统计失败:', error);
+                
+                // 安全地更新错误状态
+                const updateElementSafe = (id, value) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                };
+                
+                updateElementSafe('localMovieCount', '-');
+                updateElementSafe('dailyTotal', '-');
+                updateElementSafe('dailyLocal', '-');
+                updateElementSafe('weeklyTotal', '-');
+                updateElementSafe('weeklyLocal', '-');
+                updateElementSafe('monthlyTotal', '-');
+                updateElementSafe('monthlyLocal', '-');
+            }
+        }
+
+        // 快速搜索功能
+        function openSearchModal() {
+            const modal = document.getElementById('searchModal');
+            const modalContent = document.getElementById('searchModalContent');
+            const input = document.getElementById('searchInput');
+            
+            modal.classList.remove('hidden');
+            searchModalOpen = true;
+            
+            // 触发进入动画
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+                
+                // 聚焦到输入框
+                setTimeout(() => {
+                    input.focus();
+                }, 150);
+            }, 50);
+        }
+        
+        function closeSearchModal() {
+            const modal = document.getElementById('searchModal');
+            const modalContent = document.getElementById('searchModalContent');
+            searchModalOpen = false;
+            
+            // 触发退出动画
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                // 清空输入框
+                document.getElementById('searchInput').value = '';
+            }, 300);
+        }
+
+        function performQuickSearch() {
+            const input = document.getElementById('searchInput');
+            const query = input.value.trim();
+            
+            if (!query) {
+                alert('请输入搜索关键词');
+                return;
+            }
+            
+            // 关闭模态框
+            closeSearchModal();
+            
+            // 跳转到搜索页面并带上查询参数
+            window.location.href = `/search.html?q=${encodeURIComponent(query)}`;
+        }
+        
+        // 键盘快捷键支持
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+K 或 Cmd+K 打开搜索
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                if (!searchModalOpen) {
+                    openSearchModal();
+                }
+            }
+        
+            // ESC 键关闭搜索模态框
+            if (e.key === 'Escape' && searchModalOpen) {
+                closeSearchModal();
+            }
+            
+            // Enter 键执行搜索
+            if (e.key === 'Enter' && searchModalOpen) {
+                e.preventDefault();
+                performQuickSearch();
+            }
+        });
+
+        // 点击模态框外部关闭
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('searchModal');
+            
+            if (searchModalOpen && e.target === modal) {
+                closeSearchModal();
+            }
+        });
+    </script>
+</body>
+</html> 
