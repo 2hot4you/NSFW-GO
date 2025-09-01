@@ -5,11 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
+	"net/http"
 	"net/smtp"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	_ "github.com/lib/pq" // PostgreSQL驱动
 	"gopkg.in/yaml.v3"
 
 	"nsfw-go/internal/model"
@@ -75,6 +78,31 @@ func (s *ConfigService) SaveConfig(config *model.SystemConfig) error {
 func (s *ConfigService) TestDatabaseConnection(config model.DatabaseConfig) *model.ConnectionTestResult {
 	start := time.Now()
 
+	// 验证必要参数
+	if config.Host == "" {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: "数据库主机地址不能为空",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	if config.User == "" {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: "数据库用户名不能为空",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	if config.DBName == "" {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: "数据库名称不能为空",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		config.Host, config.Port, config.User, config.Password, config.DBName, config.SSLMode)
 
@@ -82,19 +110,43 @@ func (s *ConfigService) TestDatabaseConnection(config model.DatabaseConfig) *mod
 	if err != nil {
 		return &model.ConnectionTestResult{
 			Success: false,
-			Message: fmt.Sprintf("连接失败: %s", err.Error()),
+			Message: fmt.Sprintf("创建数据库连接失败: %s", err.Error()),
 			Latency: time.Since(start).Milliseconds(),
 		}
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// 设置较短的超时时间进行真实连接测试
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
+		// 解析具体的错误信息
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "connection refused") {
+			errMsg = "连接被拒绝，请检查主机地址和端口"
+		} else if strings.Contains(errMsg, "password authentication failed") {
+			errMsg = "密码认证失败，请检查用户名和密码"
+		} else if strings.Contains(errMsg, "database") && strings.Contains(errMsg, "does not exist") {
+			errMsg = "数据库不存在，请检查数据库名称"
+		} else if strings.Contains(errMsg, "timeout") {
+			errMsg = "连接超时，请检查网络和防火墙设置"
+		}
+
 		return &model.ConnectionTestResult{
 			Success: false,
-			Message: fmt.Sprintf("ping失败: %s", err.Error()),
+			Message: fmt.Sprintf("数据库连接失败: %s", errMsg),
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	// 执行一个简单的查询来确保连接正常工作
+	var result int
+	err = db.QueryRowContext(ctx, "SELECT 1").Scan(&result)
+	if err != nil {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("数据库查询测试失败: %s", err.Error()),
 			Latency: time.Since(start).Milliseconds(),
 		}
 	}
@@ -110,20 +162,153 @@ func (s *ConfigService) TestDatabaseConnection(config model.DatabaseConfig) *mod
 func (s *ConfigService) TestRedisConnection(config model.RedisConfig) *model.ConnectionTestResult {
 	start := time.Now()
 
-	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
-	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
-	if err != nil {
+	// 验证必要参数
+	if config.Host == "" {
 		return &model.ConnectionTestResult{
 			Success: false,
-			Message: fmt.Sprintf("连接失败: %s", err.Error()),
+			Message: "Redis主机地址不能为空",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
+
+	// 首先测试TCP连接
+	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
+	if err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "connection refused") {
+			errMsg = "连接被拒绝，请检查Redis服务是否启动以及主机地址和端口"
+		} else if strings.Contains(errMsg, "timeout") {
+			errMsg = "连接超时，请检查网络和防火墙设置"
+		} else if strings.Contains(errMsg, "no route to host") {
+			errMsg = "无法到达主机，请检查主机地址"
+		}
+
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("Redis TCP连接失败: %s", errMsg),
 			Latency: time.Since(start).Milliseconds(),
 		}
 	}
 	defer conn.Close()
 
+	// 设置读写超时
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	// 发送Redis PING命令
+	if config.Password != "" {
+		// 如果有密码，先发送AUTH命令
+		authCmd := fmt.Sprintf("AUTH %s\r\n", config.Password)
+		_, err = conn.Write([]byte(authCmd))
+		if err != nil {
+			return &model.ConnectionTestResult{
+				Success: false,
+				Message: fmt.Sprintf("发送AUTH命令失败: %s", err.Error()),
+				Latency: time.Since(start).Milliseconds(),
+			}
+		}
+
+		// 读取AUTH响应
+		buffer := make([]byte, 1024)
+		n, err := conn.Read(buffer)
+		if err != nil {
+			return &model.ConnectionTestResult{
+				Success: false,
+				Message: fmt.Sprintf("读取AUTH响应失败: %s", err.Error()),
+				Latency: time.Since(start).Milliseconds(),
+			}
+		}
+
+		response := string(buffer[:n])
+		if strings.Contains(response, "-ERR") {
+			if strings.Contains(response, "invalid password") || strings.Contains(response, "WRONGPASS") {
+				return &model.ConnectionTestResult{
+					Success: false,
+					Message: "Redis密码认证失败，请检查密码",
+					Latency: time.Since(start).Milliseconds(),
+				}
+			}
+			return &model.ConnectionTestResult{
+				Success: false,
+				Message: fmt.Sprintf("Redis认证失败: %s", strings.TrimSpace(response)),
+				Latency: time.Since(start).Milliseconds(),
+			}
+		}
+	}
+
+	// 发送PING命令
+	_, err = conn.Write([]byte("PING\r\n"))
+	if err != nil {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("发送PING命令失败: %s", err.Error()),
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	// 读取PING响应
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("读取PING响应失败: %s", err.Error()),
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	response := string(buffer[:n])
+	if !strings.Contains(response, "+PONG") {
+		if strings.Contains(response, "-NOAUTH") {
+			return &model.ConnectionTestResult{
+				Success: false,
+				Message: "Redis需要密码认证，请设置正确的密码",
+				Latency: time.Since(start).Milliseconds(),
+			}
+		}
+
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("Redis PING测试失败，响应: %s", strings.TrimSpace(response)),
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	// 如果指定了数据库编号，测试SELECT命令
+	if config.DB > 0 {
+		selectCmd := fmt.Sprintf("SELECT %d\r\n", config.DB)
+		_, err = conn.Write([]byte(selectCmd))
+		if err != nil {
+			return &model.ConnectionTestResult{
+				Success: false,
+				Message: fmt.Sprintf("发送SELECT命令失败: %s", err.Error()),
+				Latency: time.Since(start).Milliseconds(),
+			}
+		}
+
+		n, err = conn.Read(buffer)
+		if err != nil {
+			return &model.ConnectionTestResult{
+				Success: false,
+				Message: fmt.Sprintf("读取SELECT响应失败: %s", err.Error()),
+				Latency: time.Since(start).Milliseconds(),
+			}
+		}
+
+		response = string(buffer[:n])
+		if strings.Contains(response, "-ERR") {
+			return &model.ConnectionTestResult{
+				Success: false,
+				Message: fmt.Sprintf("Redis数据库选择失败: %s", strings.TrimSpace(response)),
+				Latency: time.Since(start).Milliseconds(),
+			}
+		}
+	}
+
 	return &model.ConnectionTestResult{
 		Success: true,
-		Message: "Redis端口连接成功（需要完整Redis库进行完整测试）",
+		Message: "Redis连接成功",
 		Latency: time.Since(start).Milliseconds(),
 	}
 }
@@ -135,23 +320,54 @@ func (s *ConfigService) TestTelegramConnection(config model.BotConfig) *model.Co
 	if config.Token == "" {
 		return &model.ConnectionTestResult{
 			Success: false,
-			Message: "Bot Token为空",
+			Message: "Bot Token不能为空",
 			Latency: time.Since(start).Milliseconds(),
 		}
 	}
 
-	// 简单验证Token格式
-	if len(config.Token) < 10 {
+	// 验证Token格式：应该是 "数字:字符串" 的格式
+	parts := strings.Split(config.Token, ":")
+	if len(parts) != 2 || len(parts[0]) < 8 || len(parts[1]) < 35 {
 		return &model.ConnectionTestResult{
 			Success: false,
-			Message: "Bot Token格式无效",
+			Message: "Bot Token格式无效，应为 'botId:authToken' 格式",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	// 实际调用Telegram API测试Token有效性
+	client := &http.Client{Timeout: 10 * time.Second}
+	testURL := fmt.Sprintf("https://api.telegram.org/bot%s/getMe", config.Token)
+
+	resp, err := client.Get(testURL)
+	if err != nil {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("无法连接到Telegram API: %s", err.Error()),
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 401 {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: "Bot Token无效或已过期",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	if resp.StatusCode != 200 {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("Telegram API返回错误: HTTP %d", resp.StatusCode),
 			Latency: time.Since(start).Milliseconds(),
 		}
 	}
 
 	return &model.ConnectionTestResult{
 		Success: true,
-		Message: "Telegram Bot Token格式有效（需要完整Telegram库进行完整测试）",
+		Message: "Telegram Bot连接成功",
 		Latency: time.Since(start).Milliseconds(),
 	}
 }
@@ -160,16 +376,54 @@ func (s *ConfigService) TestTelegramConnection(config model.BotConfig) *model.Co
 func (s *ConfigService) TestEmailConnection(config model.EmailNotificationConfig) *model.ConnectionTestResult {
 	start := time.Now()
 
-	if config.SMTPHost == "" || config.Username == "" {
+	if config.SMTPHost == "" {
 		return &model.ConnectionTestResult{
 			Success: false,
-			Message: "SMTP配置不完整",
+			Message: "SMTP服务器地址不能为空",
 			Latency: time.Since(start).Milliseconds(),
 		}
 	}
 
-	auth := smtp.PlainAuth("", config.Username, config.Password, config.SMTPHost)
+	if config.Username == "" {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: "邮箱用户名不能为空",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	if config.SMTPPort <= 0 || config.SMTPPort > 65535 {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: "SMTP端口号无效，应在1-65535之间",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
 	addr := fmt.Sprintf("%s:%d", config.SMTPHost, config.SMTPPort)
+
+	// 首先测试TCP连接
+	conn, err := net.DialTimeout("tcp", addr, 8*time.Second)
+	if err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "connection refused") {
+			errMsg = "连接被拒绝，请检查SMTP服务器地址和端口"
+		} else if strings.Contains(errMsg, "timeout") {
+			errMsg = "连接超时，请检查网络和防火墙设置"
+		} else if strings.Contains(errMsg, "no route to host") {
+			errMsg = "无法到达主机，请检查SMTP服务器地址"
+		}
+
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("SMTP TCP连接失败: %s", errMsg),
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+	conn.Close()
+
+	// 尝试SMTP连接和认证
+	auth := smtp.PlainAuth("", config.Username, config.Password, config.SMTPHost)
 
 	client, err := smtp.Dial(addr)
 	if err != nil {
@@ -181,10 +435,31 @@ func (s *ConfigService) TestEmailConnection(config model.EmailNotificationConfig
 	}
 	defer client.Close()
 
+	// 如果端口是465或587，尝试StartTLS
+	if config.SMTPPort == 587 || config.SMTPPort == 465 {
+		if ok, _ := client.Extension("STARTTLS"); ok {
+			if err = client.StartTLS(nil); err != nil {
+				return &model.ConnectionTestResult{
+					Success: false,
+					Message: fmt.Sprintf("启动TLS失败: %s", err.Error()),
+					Latency: time.Since(start).Milliseconds(),
+				}
+			}
+		}
+	}
+
+	// 测试认证
 	if err := client.Auth(auth); err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "authentication failed") || strings.Contains(errMsg, "535") {
+			errMsg = "SMTP认证失败，请检查用户名和密码"
+		} else if strings.Contains(errMsg, "530") {
+			errMsg = "SMTP服务器要求认证，请检查配置"
+		}
+
 		return &model.ConnectionTestResult{
 			Success: false,
-			Message: fmt.Sprintf("SMTP认证失败: %s", err.Error()),
+			Message: fmt.Sprintf("SMTP认证失败: %s", errMsg),
 			Latency: time.Since(start).Milliseconds(),
 		}
 	}
@@ -192,6 +467,107 @@ func (s *ConfigService) TestEmailConnection(config model.EmailNotificationConfig
 	return &model.ConnectionTestResult{
 		Success: true,
 		Message: "邮件服务器连接成功",
+		Latency: time.Since(start).Milliseconds(),
+	}
+}
+
+// TestJackettConnection 测试Jackett连接
+func (s *ConfigService) TestJackettConnection(config model.JackettConfig) *model.ConnectionTestResult {
+	start := time.Now()
+
+	if config.Host == "" {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: "Jackett主机地址不能为空",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	if config.APIKey == "" {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: "Jackett API密钥不能为空",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	// 测试Jackett API连接
+	client := &http.Client{Timeout: 10 * time.Second}
+	testURL := fmt.Sprintf("%s/api/v2.0/indexers?apikey=%s", config.Host, config.APIKey)
+
+	resp, err := client.Get(testURL)
+	if err != nil {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("连接Jackett失败: %s", err.Error()),
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("Jackett API响应错误: HTTP %d", resp.StatusCode),
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	return &model.ConnectionTestResult{
+		Success: true,
+		Message: "Jackett连接成功",
+		Latency: time.Since(start).Milliseconds(),
+	}
+}
+
+// TestQBittorrentConnection 测试qBittorrent连接
+func (s *ConfigService) TestQBittorrentConnection(config model.QBittorrentConfig) *model.ConnectionTestResult {
+	start := time.Now()
+
+	if config.Host == "" {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: "qBittorrent主机地址不能为空",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	if config.Username == "" {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: "qBittorrent用户名不能为空",
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	// 测试qBittorrent API连接
+	client := &http.Client{Timeout: 10 * time.Second}
+	loginURL := fmt.Sprintf("%s/api/v2/auth/login", config.Host)
+
+	resp, err := client.PostForm(loginURL, map[string][]string{
+		"username": {config.Username},
+		"password": {config.Password},
+	})
+	if err != nil {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("连接qBittorrent失败: %s", err.Error()),
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return &model.ConnectionTestResult{
+			Success: false,
+			Message: fmt.Sprintf("qBittorrent登录失败: HTTP %d", resp.StatusCode),
+			Latency: time.Since(start).Milliseconds(),
+		}
+	}
+
+	return &model.ConnectionTestResult{
+		Success: true,
+		Message: "qBittorrent连接成功",
 		Latency: time.Since(start).Milliseconds(),
 	}
 }

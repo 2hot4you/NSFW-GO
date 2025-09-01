@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>下载管理 - NSFW-Go</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        
+        .download-card {
+            transition: all 0.3s ease;
+        }
+        
+        .download-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 500;
+        }
+        
+        .status-downloading {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+        
+        .status-completed {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86efac;
+        }
+        
+        .status-paused {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fcd34d;
+        }
+        
+        .status-error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+    </style>
+</head>
+
+<body class="gradient-bg text-white">
+    <!-- 导航栏 -->
+    <nav class="glass-effect sticky top-0 z-50 border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="flex items-center space-x-2">
+                        <div class="w-8 h-8 bg-gradient-to-r from-purple-400 to-blue-400 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-download text-white text-sm"></i>
+                        </div>
+                        <span class="text-xl font-bold">下载管理</span>
+                    </a>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="px-3 py-2 rounded-lg text-sm font-medium bg-gray-700/50 hover:bg-gray-600/50 transition-colors">
+                        <i class="fas fa-home mr-2"></i>首页
+                    </a>
+                    <a href="/search.html" class="px-3 py-2 rounded-lg text-sm font-medium bg-gray-700/50 hover:bg-gray-600/50 transition-colors">
+                        <i class="fas fa-search mr-2"></i>搜索
+                    </a>
+                    <button onclick="refreshDownloads()" class="px-3 py-2 rounded-lg text-sm font-medium bg-blue-600/50 hover:bg-blue-500/50 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>刷新
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 统计概览 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="glass-effect rounded-2xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-400">总下载数</p>
+                        <p class="text-2xl font-bold text-white" id="stat-total">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-list text-blue-400 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-effect rounded-2xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-400">下载中</p>
+                        <p class="text-2xl font-bold text-blue-400" id="stat-downloading">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-download text-blue-400 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-effect rounded-2xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-400">已完成</p>
+                        <p class="text-2xl font-bold text-green-400" id="stat-completed">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-check text-green-400 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-effect rounded-2xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-400">有问题</p>
+                        <p class="text-2xl font-bold text-red-400" id="stat-error">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-red-400 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 下载列表 -->
+        <div class="glass-effect rounded-2xl">
+            <div class="p-6 border-b border-white/10">
+                <h2 class="text-xl font-semibold flex items-center">
+                    <i class="fas fa-list mr-3 text-blue-400"></i>
+                    下载队列
+                </h2>
+            </div>
+            
+            <div class="p-6">
+                <div id="downloads-loading" class="text-center py-12">
+                    <i class="fas fa-spinner fa-spin text-4xl text-blue-400 mb-4"></i>
+                    <p class="text-gray-400">正在加载下载列表...</p>
+                </div>
+                
+                <div id="downloads-empty" class="text-center py-12 hidden">
+                    <i class="fas fa-download text-4xl text-gray-500 mb-4"></i>
+                    <p class="text-gray-400">暂无下载任务</p>
+                    <a href="/search.html" class="inline-block mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                        <i class="fas fa-search mr-2"></i>去搜索影片
+                    </a>
+                </div>
+                
+                <div id="downloads-list" class="space-y-4 hidden">
+                    <!-- 下载项目将动态插入这里 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let refreshInterval;
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDownloads();
+            // 每30秒自动刷新一次
+            refreshInterval = setInterval(loadDownloads, 30000);
+        });
+        
+        // 加载下载列表
+        async function loadDownloads() {
+            try {
+                const [listResponse, statsResponse] = await Promise.all([
+                    fetch('/api/v1/torrents/list'),
+                    fetch('/api/v1/torrents/status')
+                ]);
+                
+                if (!listResponse.ok || !statsResponse.ok) {
+                    throw new Error('获取下载数据失败');
+                }
+                
+                const listData = await listResponse.json();
+                const statsData = await statsResponse.json();
+                
+                updateStats(statsData.data);
+                renderDownloads(listData.data.torrents);
+                
+            } catch (error) {
+                console.error('加载下载列表失败:', error);
+                showError('加载下载列表失败: ' + error.message);
+            }
+        }
+        
+        // 更新统计数据
+        function updateStats(stats) {
+            document.getElementById('stat-total').textContent = stats.total || 0;
+            document.getElementById('stat-downloading').textContent = stats.downloading || 0;
+            document.getElementById('stat-completed').textContent = stats.completed || 0;
+            document.getElementById('stat-error').textContent = stats.error || 0;
+        }
+        
+        // 渲染下载列表
+        function renderDownloads(torrents) {
+            const loadingEl = document.getElementById('downloads-loading');
+            const emptyEl = document.getElementById('downloads-empty');
+            const listEl = document.getElementById('downloads-list');
+            
+            loadingEl.classList.add('hidden');
+            
+            if (!torrents || torrents.length === 0) {
+                emptyEl.classList.remove('hidden');
+                listEl.classList.add('hidden');
+                return;
+            }
+            
+            emptyEl.classList.add('hidden');
+            listEl.classList.remove('hidden');
+            
+            listEl.innerHTML = torrents.map(torrent => createDownloadCard(torrent)).join('');
+        }
+        
+        // 创建下载卡片
+        function createDownloadCard(torrent) {
+            const progress = torrent.progress || 0;
+            const progressPercent = Math.round(progress * 100);
+            const status = getStatusInfo(torrent.state);
+            const size = formatFileSize(torrent.size || 0);
+            const downloadedSize = formatFileSize((torrent.size || 0) * progress);
+            const speed = torrent.dlspeed ? formatSpeed(torrent.dlspeed) : '0 B/s';
+            const eta = torrent.eta && torrent.eta !== 8640000 ? formatTime(torrent.eta) : '∞';
+            
+            return `
+                <div class="download-card glass-effect rounded-xl p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-lg font-medium text-white truncate mb-2" title="${torrent.name}">
+                                ${torrent.name}
+                            </h3>
+                            <div class="flex items-center space-x-4 text-sm text-gray-400">
+                                <span><i class="fas fa-hdd mr-1"></i>${size}</span>
+                                <span><i class="fas fa-download mr-1"></i>${downloadedSize}</span>
+                                <span><i class="fas fa-tachometer-alt mr-1"></i>${speed}</span>
+                                ${eta !== '∞' ? `<span><i class="fas fa-clock mr-1"></i>${eta}</span>` : ''}
+                            </div>
+                        </div>
+                        <span class="status-badge ${status.class}">${status.text}</span>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between text-sm mb-2">
+                            <span class="text-gray-400">进度</span>
+                            <span class="text-white">${progressPercent}%</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div class="progress-bar bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full" 
+                                 style="width: ${progressPercent}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between text-sm">
+                        <div class="flex items-center space-x-4 text-gray-400">
+                            <span><i class="fas fa-arrow-up mr-1"></i>${torrent.num_seeds || 0} 做种</span>
+                            <span><i class="fas fa-arrow-down mr-1"></i>${torrent.num_leechs || 0} 下载</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            ${torrent.state === 'pausedDL' || torrent.state === 'pausedUP' ? 
+                                `<button onclick="resumeTorrent('${torrent.hash}')" class="px-3 py-1 bg-green-600/50 hover:bg-green-500/50 rounded text-xs transition-colors">
+                                    <i class="fas fa-play mr-1"></i>继续
+                                </button>` :
+                                `<button onclick="pauseTorrent('${torrent.hash}')" class="px-3 py-1 bg-yellow-600/50 hover:bg-yellow-500/50 rounded text-xs transition-colors">
+                                    <i class="fas fa-pause mr-1"></i>暂停
+                                </button>`
+                            }
+                            <button onclick="deleteTorrent('${torrent.hash}')" class="px-3 py-1 bg-red-600/50 hover:bg-red-500/50 rounded text-xs transition-colors">
+                                <i class="fas fa-trash mr-1"></i>删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 获取状态信息
+        function getStatusInfo(state) {
+            const statusMap = {
+                'downloading': { text: '下载中', class: 'status-downloading' },
+                'stalledDL': { text: '等待中', class: 'status-downloading' },
+                'metaDL': { text: '获取信息', class: 'status-downloading' },
+                'allocating': { text: '分配空间', class: 'status-downloading' },
+                'uploading': { text: '已完成', class: 'status-completed' },
+                'stalledUP': { text: '做种中', class: 'status-completed' },
+                'queuedUP': { text: '排队上传', class: 'status-completed' },
+                'pausedDL': { text: '已暂停', class: 'status-paused' },
+                'pausedUP': { text: '已暂停', class: 'status-paused' },
+                'error': { text: '错误', class: 'status-error' },
+                'missingFiles': { text: '文件丢失', class: 'status-error' },
+                'queuedDL': { text: '排队下载', class: 'status-downloading' }
+            };
+            
+            return statusMap[state] || { text: state, class: 'status-paused' };
+        }
+        
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+        
+        // 格式化速度
+        function formatSpeed(bytesPerSecond) {
+            return formatFileSize(bytesPerSecond) + '/s';
+        }
+        
+        // 格式化时间
+        function formatTime(seconds) {
+            if (seconds < 60) return `${seconds}秒`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}分钟`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}小时`;
+            return `${Math.floor(seconds / 86400)}天`;
+        }
+        
+        // 手动刷新
+        function refreshDownloads() {
+            loadDownloads();
+        }
+        
+        // 显示错误信息
+        function showError(message) {
+            // 这里可以实现一个更好的错误提示
+            alert(message);
+        }
+        
+        // 暂停种子 (需要实现API)
+        function pauseTorrent(hash) {
+            // TODO: 实现暂停种子的API调用
+            console.log('暂停种子:', hash);
+        }
+        
+        // 继续种子 (需要实现API)
+        function resumeTorrent(hash) {
+            // TODO: 实现继续种子的API调用
+            console.log('继续种子:', hash);
+        }
+        
+        // 删除种子 (需要实现API)
+        function deleteTorrent(hash) {
+            if (confirm('确定要删除这个下载任务吗？')) {
+                // TODO: 实现删除种子的API调用
+                console.log('删除种子:', hash);
+            }
+        }
+        
+        // 页面卸载时清理定时器
+        window.addEventListener('beforeunload', function() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
+    <script src="static/js/privacy-mode.js"></script>
+</body>
+</html>

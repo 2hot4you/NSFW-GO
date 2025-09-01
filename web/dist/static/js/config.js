@@ -1,6 +1,19 @@
 // 全局变量
 let currentConfig = null;
+let originalConfig = null; // 存储原始配置，用于保护敏感字段
 let isLoading = false;
+
+// 敏感字段列表（现在仅用于标记，不再隐藏）
+const sensitiveFields = [
+    'database-password',
+    'redis-password', 
+    'telegram-token',
+    'security-jwt-secret',
+    'security-password-salt',
+    'notification-email-password',
+    'torrent-jackett-api-key',
+    'torrent-qbittorrent-password'
+];
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -29,7 +42,12 @@ async function loadConfig() {
         const result = await response.json();
         
         if (result.success) {
+            // 首先获取完整配置（包含敏感信息的占位符）
             currentConfig = result.data;
+            
+            // 存储原始配置用于恢复敏感字段的真实值
+            originalConfig = JSON.parse(JSON.stringify(result.data));
+            
             populateForm(currentConfig);
             showNotification('配置加载成功', 'success');
         } else {
@@ -44,6 +62,19 @@ async function loadConfig() {
 // 保存配置
 async function saveConfig() {
     if (isLoading) return;
+    
+    // 先进行配置验证
+    const isValid = await validateConfigSilently();
+    if (!isValid) {
+        showNotification('配置验证失败，请先验证配置后再保存', 'error');
+        return;
+    }
+    
+    // 显示确认弹框
+    const confirmRestart = confirm('⚠️ 保存配置后将自动重启服务器以应用新配置。\n\n是否确定要继续？');
+    if (!confirmRestart) {
+        return;
+    }
     
     setLoading(true);
     try {
@@ -61,8 +92,13 @@ async function saveConfig() {
         
         if (result.success) {
             currentConfig = config;
-            showNotification('配置保存成功', 'success');
+            showNotification('配置保存成功，正在重启服务器...', 'success');
             loadBackups(); // 刷新备份列表
+            
+            // 延迟重启服务器
+            setTimeout(() => {
+                restartServer();
+            }, 1000);
         } else {
             if (result.errors) {
                 showNotification('配置验证失败:\n' + result.errors.join('\n'), 'error');
@@ -95,14 +131,35 @@ async function validateConfig() {
         const result = await response.json();
         
         if (result.success) {
-            showNotification('配置验证通过', 'success');
+            showNotification('✅ 配置验证通过！所有设置正确。', 'success');
         } else {
-            showNotification('配置验证失败:\n' + result.errors.join('\n'), 'error');
+            showNotification('❌ 配置验证失败:\n' + result.errors.join('\n'), 'error');
         }
     } catch (error) {
         showNotification('验证配置时发生错误: ' + error.message, 'error');
     }
     setLoading(false);
+}
+
+// 静默验证配置（不显示通知）
+async function validateConfigSilently() {
+    try {
+        const config = collectFormData();
+        
+        const response = await fetch('/api/v1/config/validate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(config)
+        });
+        
+        const result = await response.json();
+        return result.success;
+    } catch (error) {
+        console.error('配置验证错误:', error);
+        return false;
+    }
 }
 
 // 填充表单数据
@@ -190,11 +247,30 @@ function populateForm(config) {
     setFieldValue('dev-enable-debug-routes', config.dev.enable_debug_routes);
     setFieldValue('dev-enable-profiling', config.dev.enable_profiling);
     setFieldValue('dev-auto-reload', config.dev.auto_reload);
+    
+    // 种子下载配置
+    if (config.torrent) {
+        setFieldValue('torrent-jackett-host', config.torrent.jackett.host);
+        setFieldValue('torrent-jackett-api-key', config.torrent.jackett.api_key);
+        setFieldValue('torrent-jackett-timeout', config.torrent.jackett.timeout);
+        setFieldValue('torrent-jackett-retry-count', config.torrent.jackett.retry_count);
+        
+        setFieldValue('torrent-qbittorrent-host', config.torrent.qbittorrent.host);
+        setFieldValue('torrent-qbittorrent-username', config.torrent.qbittorrent.username);
+        setFieldValue('torrent-qbittorrent-password', config.torrent.qbittorrent.password);
+        setFieldValue('torrent-qbittorrent-timeout', config.torrent.qbittorrent.timeout);
+        setFieldValue('torrent-qbittorrent-retry-count', config.torrent.qbittorrent.retry_count);
+        setFieldValue('torrent-qbittorrent-download-dir', config.torrent.qbittorrent.download_dir);
+        
+        setFieldValue('torrent-search-max-results', config.torrent.search.max_results);
+        setFieldValue('torrent-search-min-seeders', config.torrent.search.min_seeders);
+        setFieldValue('torrent-search-sort-by-size', config.torrent.search.sort_by_size);
+    }
 }
 
 // 收集表单数据
 function collectFormData() {
-    return {
+    const formData = {
         server: {
             host: getFieldValue('server-host'),
             port: parseInt(getFieldValue('server-port')) || 8080,
@@ -308,8 +384,31 @@ function collectFormData() {
             speed_limit: 0,
             temp_dir: "/tmp/nsfw-downloads",
             completed_dir: "/MediaCenter/NSFW/Hub/#Downloads"
+        },
+        torrent: {
+            jackett: {
+                host: getFieldValue('torrent-jackett-host'),
+                api_key: getFieldValue('torrent-jackett-api-key'),
+                timeout: getFieldValue('torrent-jackett-timeout'),
+                retry_count: parseInt(getFieldValue('torrent-jackett-retry-count')) || 3
+            },
+            qbittorrent: {
+                host: getFieldValue('torrent-qbittorrent-host'),
+                username: getFieldValue('torrent-qbittorrent-username'),
+                password: getFieldValue('torrent-qbittorrent-password'),
+                timeout: getFieldValue('torrent-qbittorrent-timeout'),
+                retry_count: parseInt(getFieldValue('torrent-qbittorrent-retry-count')) || 3,
+                download_dir: getFieldValue('torrent-qbittorrent-download-dir')
+            },
+            search: {
+                max_results: parseInt(getFieldValue('torrent-search-max-results')) || 20,
+                min_seeders: parseInt(getFieldValue('torrent-search-min-seeders')) || 1,
+                sort_by_size: getFieldValue('torrent-search-sort-by-size')
+            }
         }
     };
+    
+    return formData;
 }
 
 // 设置字段值
@@ -333,6 +432,18 @@ function getFieldValue(fieldId) {
         return field.checked;
     }
     return field.value;
+}
+
+// 获取字段值（现在直接返回当前值，不再处理占位符）
+function getFieldValueWithFallback(fieldId, originalValue) {
+    const currentValue = getFieldValue(fieldId);
+    
+    // 如果当前值为空，则使用原始值
+    if (currentValue === '') {
+        return originalValue || '';
+    }
+    
+    return currentValue;
 }
 
 // 填充数组字段
@@ -403,13 +514,33 @@ function addEmailTo() {
 
 // 连接测试函数
 async function testDatabaseConnection() {
+    const host = getFieldValue('database-host');
+    const port = getFieldValue('database-port');
+    const user = getFieldValue('database-user');
+    const password = getFieldValue('database-password');
+    const dbname = getFieldValue('database-dbname');
+    const sslmode = getFieldValue('database-sslmode');
+    
+    // 验证端口号
+    const portNum = parseInt(port);
+    if (isNaN(portNum) || portNum <= 0 || portNum > 65535) {
+        const resultElement = document.getElementById('database-test-result');
+        resultElement.style.display = 'block';
+        resultElement.className = 'test-result error';
+        resultElement.textContent = '✗ 端口号无效，应在1-65535之间';
+        setTimeout(() => {
+            resultElement.style.display = 'none';
+        }, 5000);
+        return;
+    }
+    
     await testConnection('database', {
-        host: getFieldValue('database-host'),
-        port: parseInt(getFieldValue('database-port')) || 5432,
-        user: getFieldValue('database-user'),
-        password: getFieldValue('database-password'),
-        dbname: getFieldValue('database-dbname'),
-        sslmode: getFieldValue('database-sslmode'),
+        host: host,
+        port: portNum,
+        user: user,
+        password: password,
+        dbname: dbname,
+        sslmode: sslmode,
         max_open_conns: parseInt(getFieldValue('database-max-open-conns')) || 25,
         max_idle_conns: parseInt(getFieldValue('database-max-idle-conns')) || 10,
         max_lifetime: parseInt(getFieldValue('database-max-lifetime')) || 3600
@@ -417,35 +548,95 @@ async function testDatabaseConnection() {
 }
 
 async function testRedisConnection() {
+    const host = getFieldValue('redis-host');
+    const port = getFieldValue('redis-port');
+    const password = getFieldValue('redis-password');
+    const db = getFieldValue('redis-db');
+    
+    // 验证端口号
+    const portNum = parseInt(port);
+    if (isNaN(portNum) || portNum <= 0 || portNum > 65535) {
+        const resultElement = document.getElementById('redis-test-result');
+        resultElement.style.display = 'block';
+        resultElement.className = 'test-result error';
+        resultElement.textContent = '✗ 端口号无效，应在1-65535之间';
+        setTimeout(() => {
+            resultElement.style.display = 'none';
+        }, 5000);
+        return;
+    }
+    
     await testConnection('redis', {
-        host: getFieldValue('redis-host'),
-        port: parseInt(getFieldValue('redis-port')) || 6379,
-        password: getFieldValue('redis-password'),
-        db: parseInt(getFieldValue('redis-db')) || 0,
+        host: host,
+        port: portNum,
+        password: password,
+        db: parseInt(db) || 0,
         pool_size: parseInt(getFieldValue('redis-pool-size')) || 10,
         min_idle_conns: parseInt(getFieldValue('redis-min-idle-conns')) || 5
     }, 'redis-test-result');
 }
 
 async function testTelegramConnection() {
+    const token = getFieldValue('telegram-token');
+    
     await testConnection('telegram', {
         enabled: getFieldValue('telegram-enabled'),
-        token: getFieldValue('telegram-token'),
+        token: token,
         webhook_url: getFieldValue('telegram-webhook-url'),
         admin_ids: collectArrayField('telegram-admin-ids').map(id => parseInt(id)).filter(id => !isNaN(id))
     }, 'telegram-test-result');
 }
 
 async function testEmailConnection() {
+    const smtpPort = getFieldValue('notification-email-smtp-port');
+    const password = getFieldValue('notification-email-password');
+    
+    // 验证端口号
+    const portNum = parseInt(smtpPort);
+    if (isNaN(portNum) || portNum <= 0 || portNum > 65535) {
+        const resultElement = document.getElementById('email-test-result');
+        resultElement.style.display = 'block';
+        resultElement.className = 'test-result error';
+        resultElement.textContent = '✗ SMTP端口号无效，应在1-65535之间';
+        setTimeout(() => {
+            resultElement.style.display = 'none';
+        }, 5000);
+        return;
+    }
+    
     await testConnection('email', {
         enabled: getFieldValue('notification-email-enabled'),
         smtp_host: getFieldValue('notification-email-smtp-host'),
-        smtp_port: parseInt(getFieldValue('notification-email-smtp-port')) || 587,
+        smtp_port: portNum,
         username: getFieldValue('notification-email-username'),
-        password: getFieldValue('notification-email-password'),
+        password: password,
         from: getFieldValue('notification-email-from'),
         to: collectArrayField('notification-email-to')
     }, 'email-test-result');
+}
+
+async function testJackettConnection() {
+    const apiKey = getFieldValue('torrent-jackett-api-key');
+    
+    await testConnection('jackett', {
+        host: getFieldValue('torrent-jackett-host'),
+        api_key: apiKey,
+        timeout: getFieldValue('torrent-jackett-timeout'),
+        retry_count: parseInt(getFieldValue('torrent-jackett-retry-count')) || 3
+    }, 'jackett-test-result');
+}
+
+async function testQBittorrentConnection() {
+    const password = getFieldValue('torrent-qbittorrent-password');
+    
+    await testConnection('qbittorrent', {
+        host: getFieldValue('torrent-qbittorrent-host'),
+        username: getFieldValue('torrent-qbittorrent-username'),
+        password: password,
+        timeout: getFieldValue('torrent-qbittorrent-timeout'),
+        retry_count: parseInt(getFieldValue('torrent-qbittorrent-retry-count')) || 3,
+        download_dir: getFieldValue('torrent-qbittorrent-download-dir')
+    }, 'qbittorrent-test-result');
 }
 
 // 测试连接的通用函数
@@ -463,18 +654,27 @@ async function testConnection(type, data, resultElementId) {
             },
             body: JSON.stringify({
                 type: type,
-                config: data
+                data: data
             })
         });
         
         const result = await response.json();
         
-        if (result.success) {
-            resultElement.className = 'test-result success';
-            resultElement.textContent = '✓ 连接成功';
+        // 检查外层API调用是否成功
+        if (result.success && result.data) {
+            // 检查实际的连接测试结果
+            if (result.data.success) {
+                resultElement.className = 'test-result success';
+                resultElement.textContent = '✓ ' + (result.data.message || '连接成功') + 
+                    (result.data.latency ? ` (${result.data.latency}ms)` : '');
+            } else {
+                resultElement.className = 'test-result error';
+                resultElement.textContent = '✗ 连接失败: ' + (result.data.message || '未知错误') +
+                    (result.data.latency ? ` (${result.data.latency}ms)` : '');
+            }
         } else {
             resultElement.className = 'test-result error';
-            resultElement.textContent = '✗ 连接失败: ' + (result.message || '未知错误');
+            resultElement.textContent = '✗ 测试失败: ' + (result.message || '未知错误');
         }
     } catch (error) {
         resultElement.className = 'test-result error';
@@ -594,4 +794,34 @@ function showNotification(message, type) {
 // 返回上一页
 function goBack() {
     window.history.back();
+}
+
+// 重启服务器
+async function restartServer() {
+    try {
+        showNotification('正在重启服务器，请稍等...', 'success');
+        
+        const response = await fetch('/api/v1/system/restart', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            showNotification('服务器重启指令已发送', 'success');
+            
+            // 等待服务器重启完成
+            setTimeout(() => {
+                showNotification('服务器正在重启中，页面将在5秒后自动刷新...', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 5000);
+            }, 2000);
+        } else {
+            showNotification('重启服务器失败', 'error');
+        }
+    } catch (error) {
+        showNotification('重启服务器时发生错误: ' + error.message, 'error');
+    }
 } 

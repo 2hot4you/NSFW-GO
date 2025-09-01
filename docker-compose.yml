@@ -67,7 +67,7 @@ services:
       - NSFW_SERVER_MODE=debug
       - NSFW_LOG_LEVEL=debug
     volumes:
-      - .:/app
+      # - .:/app  # 注释掉开发模式的代码挂载，使用构建的二进制文件
       - /MediaCenter:/app/media:ro  # 只读挂载媒体库
       - ./logs:/app/logs
     depends_on:

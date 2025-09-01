@@ -372,41 +372,54 @@ class SearchPage {
     // 创建排行榜影片卡片
     createRankingCard(ranking) {
         const card = document.createElement('div');
-        card.className = 'movie-card rounded-xl overflow-hidden';
-        
-        const imageUrl = ranking.cover_url || 'static/images/placeholder.svg';
+        card.className = 'movie-card bg-gray-800 rounded-lg overflow-hidden relative group';
         
         card.innerHTML = `
-            <div class="relative">
-                <img src="${imageUrl}" alt="${ranking.title}" class="w-full h-48 object-cover" 
-                     onerror="this.src='static/images/placeholder.svg'">
+            <div class="aspect-w-2 aspect-h-3 relative">
+                ${ranking.cover_url ? `<img src="${ranking.cover_url}" alt="${ranking.title}" class="object-cover w-full h-full rounded-t-lg">` : `
+                    <div class="w-full h-full flex items-center justify-center bg-gray-700 rounded-t-lg">
+                        <i class="fas fa-film text-4xl text-gray-400"></i>
+                    </div>
+                `}
                 <div class="absolute top-3 left-3">
                     <span class="count-badge yellow px-3 py-1 rounded-full text-xs font-semibold">
-                        <i class="fas fa-trophy mr-1"></i>${ranking.rank_type}
+                        <i class="fas fa-trophy mr-1"></i>#${ranking.position}
                     </span>
                 </div>
-                <div class="absolute top-3 right-3">
-                    <span class="rating-badge px-3 py-1 rounded-full text-xs font-semibold">
-                        #${ranking.position}
+                ${ranking.rating > 0 ? `
+                    <div class="absolute top-3 right-3" style="z-index: 100000;">
+                        <span class="rating-badge flex items-center px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                            <i class="fas fa-star mr-1"></i>
+                            ${ranking.rating.toFixed(1)}
                     </span>
                 </div>
+                ` : ''}
             </div>
             <div class="p-4">
                 <h3 class="font-semibold text-white mb-3 line-clamp-2" title="${ranking.title}">
                     ${ranking.title}
                 </h3>
                 <div class="text-sm text-gray-400 space-y-2">
-                    ${ranking.code ? `<p><i class="fas fa-tag mr-2 text-blue-400"></i>番号: ${ranking.code}</p>` : ''}
-                    <p><i class="fas fa-chart-line mr-2 text-yellow-400"></i>排名: #${ranking.position}</p>
-                    <p><i class="fas fa-list mr-2 text-purple-400"></i>类型: ${this.getRankTypeText(ranking.rank_type)}</p>
+                    ${ranking.code ? `
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <i class="fas fa-tag mr-2 text-blue-400"></i>番号: ${ranking.code}
                 </div>
-                ${ranking.local_exists ? `
-                <div class="mt-3">
-                    <span class="count-badge green inline-flex items-center px-3 py-1 text-xs rounded-full font-medium">
-                        <i class="fas fa-check mr-1"></i>本地已有
+                            ${!ranking.local_exists ? `
+                                <button onclick="searchPage.downloadMovie('${ranking.code}', '${ranking.title.replace(/'/g, "\\'")}', this)" 
+                                        class="download-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium flex items-center transition-colors duration-200">
+                                    <i class="fas fa-download mr-1"></i>下载
+                                </button>
+                            ` : `
+                                <span class="count-badge green inline-flex items-center px-2 py-1 text-xs rounded-full font-medium">
+                                    <i class="fas fa-check mr-1"></i>已有
                     </span>
+                            `}
+                        </div>
+                    ` : ''}
+                    ${ranking.rating > 0 ? `<p><i class="fas fa-star mr-2 text-yellow-400"></i>评分: ${ranking.rating.toFixed(1)}</p>` : ''}
+                    ${ranking.release_date ? `<p><i class="fas fa-calendar mr-2 text-green-400"></i>发行: ${ranking.release_date}</p>` : ''}
                 </div>
-                ` : ''}
             </div>
         `;
         
@@ -500,53 +513,73 @@ class SearchPage {
     }
     
     // 创建JAVDb影片卡片
-    createJAVDbMovieCard(movie) {
+    createJAVDbMovieCard(movieData) {
         const card = document.createElement('div');
-        card.className = 'movie-card rounded-xl overflow-hidden';
+        card.className = 'movie-card bg-gray-800 rounded-lg overflow-hidden relative group';
         
-        // 确保评分是数字类型且大于0
-        const rating = parseFloat(movie.rating);
-        const hasRating = !isNaN(rating) && rating > 0;
+        // 添加封面图片
+        const coverContainer = document.createElement('div');
+        coverContainer.className = 'aspect-w-2 aspect-h-3 relative';
         
-
+        const img = document.createElement('img');
+        img.src = movieData.cover_url || '/static/images/placeholder.jpg';
+        img.alt = movieData.title;
+        img.className = 'object-cover w-full h-full rounded-t-lg';
+        coverContainer.appendChild(img);
         
-        card.innerHTML = `
-            <div class="relative">
-                ${movie.cover_url ? `<img src="${movie.cover_url}" alt="${movie.title}" class="w-full h-48 object-cover">` : `
-                    <div class="w-full h-48 flex items-center justify-center bg-gray-700">
-                        <i class="fas fa-film text-4xl text-gray-400"></i>
-                    </div>
-                `}
-                <div class="absolute top-3 left-3">
-                    <span class="count-badge green px-3 py-1 rounded-full text-xs font-semibold">
-                        <i class="fas fa-globe mr-1"></i>JAVDb
-                    </span>
-                </div>
-                ${hasRating ? `
-                    <div class="absolute top-3 right-3 z-10">
-                        <span class="rating-badge flex items-center px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-                            <i class="fas fa-star mr-1"></i>
-                            ${rating.toFixed(1)}
-                        </span>
-                    </div>
-                ` : ''}
-            </div>
-            <div class="p-4">
-                <h3 class="font-semibold text-white mb-3 line-clamp-2" title="${movie.title}">
-                    ${movie.title}
-                </h3>
-                <div class="text-sm text-gray-400 space-y-2">
-                    ${movie.code ? `<p><i class="fas fa-tag mr-2 text-blue-400"></i>番号: ${movie.code}</p>` : ''}
-                    ${hasRating ? `<p><i class="fas fa-star mr-2 text-yellow-400"></i>评分: ${rating.toFixed(1)}</p>` : ''}
-                    ${movie.release_date ? `<p><i class="fas fa-calendar mr-2 text-green-400"></i>发行: ${movie.release_date}</p>` : ''}
-                    <p>
-                        <a href="${movie.detail_url}" target="_blank" class="text-blue-400 hover:text-blue-300 transition-colors">
-                            <i class="fas fa-external-link-alt mr-2"></i>在JAVDb查看详情
-                        </a>
-                    </p>
-                </div>
-            </div>
-        `;
+        // 添加评分徽章
+        if (movieData.rating > 0) {
+            const ratingBadge = document.createElement('div');
+            ratingBadge.className = 'absolute top-2 right-2 bg-orange-500 text-white px-2 py-1 rounded-full text-sm font-medium flex items-center';
+            ratingBadge.style.zIndex = '100000';
+            ratingBadge.innerHTML = `<i class="fas fa-star mr-1"></i>${movieData.rating.toFixed(1)}`;
+            coverContainer.appendChild(ratingBadge);
+        }
+        
+        card.appendChild(coverContainer);
+        
+        // 添加影片信息
+        const info = document.createElement('div');
+        info.className = 'p-4';
+        
+        const title = document.createElement('h3');
+        title.className = 'text-lg font-medium text-white mb-2';
+        title.textContent = movieData.title;
+        info.appendChild(title);
+        
+        const meta = document.createElement('div');
+        meta.className = 'text-sm text-gray-400 space-y-2';
+        
+        // 番号和下载按钮的容器
+        const codeContainer = document.createElement('div');
+        codeContainer.className = 'flex items-center justify-between mb-2';
+        
+        const codeDiv = document.createElement('div');
+        codeDiv.className = 'flex items-center';
+        codeDiv.innerHTML = `<i class="fas fa-hashtag mr-1"></i>${movieData.code}`;
+        
+        // 添加下载按钮
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'download-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium flex items-center transition-colors duration-200';
+        downloadBtn.innerHTML = '<i class="fas fa-download mr-1"></i>下载';
+        downloadBtn.onclick = async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            await this.searchAndDownloadTorrent(movieData.code);
+        };
+        
+        codeContainer.appendChild(codeDiv);
+        codeContainer.appendChild(downloadBtn);
+        meta.appendChild(codeContainer);
+        
+        if (movieData.release_date) {
+            const date = document.createElement('div');
+            date.innerHTML = `<i class="far fa-calendar mr-1"></i>${movieData.release_date}`;
+            meta.appendChild(date);
+        }
+        
+        info.appendChild(meta);
+        card.appendChild(info);
         
         return card;
     }
@@ -621,9 +654,353 @@ class SearchPage {
         
         return card;
     }
+    
+    // 下载电影
+    async downloadMovie(code, title, buttonElement) {
+        if (!code) {
+            this.showNotification('番号不能为空', 'error');
+            return;
+        }
+        
+        const originalButton = buttonElement;
+        const originalContent = originalButton.innerHTML;
+        
+        try {
+            // 更新按钮状态
+            originalButton.disabled = true;
+            originalButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>搜索中...';
+            
+            this.showNotification(`正在搜索 ${code} 的种子...`, 'info');
+            
+            // 使用专门的番号搜索API（会检查本地是否存在）
+            const searchResponse = await fetch(`/api/v1/torrents/search/code?code=${encodeURIComponent(code)}`);
+            const searchData = await searchResponse.json();
+            
+            if (searchResponse.status === 409) {
+                // 番号已存在
+                this.showNotification(searchData.message, 'warning');
+                originalButton.innerHTML = '<i class="fas fa-check mr-2"></i>已存在';
+                originalButton.className = 'count-badge green inline-flex items-center px-3 py-1 text-xs rounded-full font-medium';
+                originalButton.disabled = true;
+                return;
+            }
+            
+            if (!searchResponse.ok) {
+                throw new Error(searchData.message || '搜索种子失败');
+            }
+            
+            const results = searchData.data.results;
+            if (!results || results.length === 0) {
+                throw new Error('未找到可用的种子');
+            }
+            
+            // 显示种子选择界面
+            this.showTorrentSelection(code, title, results, originalButton);
+            
+        } catch (error) {
+            console.error('搜索种子失败:', error);
+            this.showNotification(`搜索失败: ${error.message}`, 'error');
+            
+            // 恢复按钮状态
+            originalButton.disabled = false;
+            originalButton.innerHTML = originalContent;
+        }
+    }
+    
+    // 显示种子选择界面
+    showTorrentSelection(code, title, torrents, originalButton) {
+        // 创建弹窗
+        const modal = document.createElement('div');
+        
+        // 完全使用内联样式，不依赖CSS类
+        modal.style.cssText = `
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 1rem !important;
+            z-index: 99999 !important;
+            background-color: rgba(0, 0, 0, 0.5) !important;
+            backdrop-filter: blur(8px) !important;
+        `;
+        
+        modal.innerHTML = `
+            <div style="
+                background: #111827 !important;
+                border-radius: 1rem !important;
+                border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                max-width: 64rem !important;
+                width: 100% !important;
+                max-height: 80vh !important;
+                overflow: hidden !important;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+                margin: auto !important;
+            ">
+                <div style="padding: 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <h3 style="font-size: 1.25rem; font-weight: bold; color: white; margin: 0;">${title}</h3>
+                            <p style="color: #9CA3AF; margin: 0.25rem 0 0 0;">选择要下载的版本 - 按文件大小排序</p>
+                        </div>
+                        <button onclick="closeModal(this)" 
+                                style="color: #9CA3AF; background: none; border: none; cursor: pointer; font-size: 1.25rem; padding: 0.5rem;">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="padding: 1.5rem; max-height: 24rem; overflow-y: auto;">
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        ${torrents.map((torrent, index) => `
+                            <div style="
+                                background: rgba(31, 41, 55, 0.5);
+                                border-radius: 0.75rem;
+                                padding: 1rem;
+                                border: 1px solid rgba(75, 85, 99, 0.5);
+                                transition: border-color 0.2s;
+                            " onmouseover="this.style.borderColor='rgba(59, 130, 246, 0.5)'" onmouseout="this.style.borderColor='rgba(75, 85, 99, 0.5)'">
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <div style="flex: 1; min-width: 0;">
+                                        <h4 style="color: white; font-weight: 500; margin: 0 0 0.5rem 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${torrent.title}">
+                                            ${torrent.title}
+                                        </h4>
+                                        <div style="display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; color: #9CA3AF;">
+                                            <span style="display: flex; align-items: center;">
+                                                💾 ${torrent.sizeFormatted}
+                                            </span>
+                                            <span style="display: flex; align-items: center;">
+                                                ⬆️ ${torrent.seeders} 做种
+                                            </span>
+                                            <span style="display: flex; align-items: center;">
+                                                ⬇️ ${torrent.leechers} 下载
+                                            </span>
+                                            ${torrent.tracker ? `
+                                            <span style="display: flex; align-items: center;">
+                                                🖥️ ${torrent.tracker}
+                                            </span>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                    <button onclick="searchPage.downloadTorrent('${torrent.magnetUri || torrent.link}', '${code}', '${torrent.title.replace(/'/g, "\\'")}', ${torrent.size}, '${torrent.tracker || ''}', 'close')" 
+                                            style="
+                                                background: #2563EB;
+                                                color: white;
+                                                padding: 0.5rem 1rem;
+                                                border-radius: 0.5rem;
+                                                border: none;
+                                                font-size: 0.875rem;
+                                                font-weight: 500;
+                                                cursor: pointer;
+                                                transition: background-color 0.2s;
+                                            " onmouseover="this.style.backgroundColor='#1D4ED8'" onmouseout="this.style.backgroundColor='#2563EB'">
+                                        ⬇️ 下载
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div style="padding: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1); background: rgba(31, 41, 55, 0.3);">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <p style="font-size: 0.875rem; color: #9CA3AF; margin: 0;">
+                            ℹ️ 建议选择文件大小较大的版本，通常画质更好
+                        </p>
+                        <button onclick="closeModal(this)" 
+                                style="
+                                    padding: 0.5rem 1rem;
+                                    background: #374151;
+                                    color: white;
+                                    border-radius: 0.5rem;
+                                    border: none;
+                                    font-size: 0.875rem;
+                                    cursor: pointer;
+                                    transition: background-color 0.2s;
+                                " onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
+                            取消
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 添加点击背景关闭弹窗
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+        
+        // 添加全局关闭函数
+        window.closeModal = function(button) {
+            const modal = button.closest('div');
+            while (modal && !modal.style.position) {
+                modal = modal.parentElement;
+            }
+            if (modal && modal.style.position === 'fixed') {
+                modal.remove();
+            }
+        };
+        
+        document.body.appendChild(modal);
+        
+        // 强制重新计算样式
+        modal.offsetHeight;
+    }
+    
+    // 下载选定的种子
+    async downloadTorrent(downloadUri, code, title, size, tracker, shouldClose) {
+        try {
+            this.showNotification('正在添加下载任务...', 'info');
+            
+            const response = await fetch('/api/v1/torrents/download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    magnet_uri: downloadUri.startsWith('magnet:') ? downloadUri : '',
+                    link: !downloadUri.startsWith('magnet:') ? downloadUri : '',
+                    code: code,
+                    title: title,
+                    size: size,
+                    tracker: tracker
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || '添加下载任务失败');
+            }
+            
+            this.showNotification('✅ 已添加到下载队列！', 'success');
+            
+            // 关闭弹窗
+            if (shouldClose === 'close') {
+                // 查找并关闭弹窗
+                const modals = document.querySelectorAll('div[style*="position: fixed"]');
+                modals.forEach(modal => {
+                    if (modal.style.position === 'fixed' && modal.style.zIndex === '99999') {
+                        modal.remove();
+                    }
+                });
+            }
+            
+            // 可选：跳转到下载管理页面
+            setTimeout(() => {
+                if (confirm('下载任务已添加，是否前往下载管理页面？')) {
+                    window.location.href = '/downloads.html';
+                }
+            }, 1000);
+            
+        } catch (error) {
+            console.error('下载失败:', error);
+            this.showNotification(`下载失败: ${error.message}`, 'error');
+        }
+    }
+    
+    // 显示通知
+    showNotification(message, type = 'info') {
+        // 移除现有通知
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+        
+        const notification = document.createElement('div');
+        notification.className = `notification fixed top-4 right-4 z-50 px-6 py-3 rounded-lg text-white font-medium transition-all duration-300 transform`;
+        
+        let bgColor = 'bg-blue-600';
+        let icon = 'fas fa-info-circle';
+        
+        switch (type) {
+            case 'success':
+                bgColor = 'bg-green-600';
+                icon = 'fas fa-check-circle';
+                break;
+            case 'error':
+                bgColor = 'bg-red-600';
+                icon = 'fas fa-exclamation-circle';
+                break;
+            case 'warning':
+                bgColor = 'bg-yellow-600';
+                icon = 'fas fa-exclamation-triangle';
+                break;
+        }
+        
+        notification.className += ` ${bgColor}`;
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <i class="${icon} mr-2"></i>
+                ${message}
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // 自动移除
+        setTimeout(() => {
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
+        }, 4000);
+    }
+
+    // 搜索并下载种子
+    async searchAndDownloadTorrent(code) {
+        try {
+            showNotification('正在搜索种子...', 'info');
+            
+            // 调用Jackett API搜索种子
+            const response = await fetch(`/api/v1/torrents/search?q=${encodeURIComponent(code)}`);
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || '搜索种子失败');
+            }
+            
+            if (!data.data || data.data.length === 0) {
+                showNotification('未找到可用的种子', 'warning');
+                return;
+            }
+            
+            // 选择最佳种子（这里简单地选择第一个结果）
+            const bestTorrent = data.data[0];
+            
+            // 添加到qBittorrent
+            const downloadResponse = await fetch('/api/v1/torrents/download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `magnet_uri=${encodeURIComponent(bestTorrent.magnetUri)}`,
+            });
+            
+            const downloadData = await downloadResponse.json();
+            
+            if (!downloadResponse.ok) {
+                throw new Error(downloadData.message || '添加下载任务失败');
+            }
+            
+            showNotification('已添加到下载队列', 'success');
+            
+        } catch (error) {
+            console.error('下载错误:', error);
+            showNotification(`下载失败: ${error.message}`, 'error');
+        }
+    }
 }
+
+// 全局变量，供HTML中的onclick使用
+let searchPage;
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', () => {
-    new SearchPage();
+    searchPage = new SearchPage();
 }); 

@@ -14,6 +14,7 @@ type SystemConfig struct {
 	Sites         SitesConfig         `yaml:"sites" json:"sites"`
 	Download      DownloadConfig      `yaml:"download" json:"download"`
 	Notifications NotificationsConfig `yaml:"notifications" json:"notifications"`
+	Torrent       TorrentConfig       `yaml:"torrent" json:"torrent"`
 }
 
 // ServerConfig 服务器配置
@@ -164,6 +165,38 @@ type ConnectionTestResult struct {
 
 // ConfigTestRequest 配置测试请求
 type ConfigTestRequest struct {
-	Type string      `json:"type"` // database, redis, telegram, email
+	Type string      `json:"type"` // database, redis, telegram, email, jackett, qbittorrent
 	Data interface{} `json:"data"`
+}
+
+// TorrentConfig 种子下载配置
+type TorrentConfig struct {
+	Jackett     JackettConfig     `yaml:"jackett" json:"jackett"`
+	QBittorrent QBittorrentConfig `yaml:"qbittorrent" json:"qbittorrent"`
+	Search      TorrentSearchConfig `yaml:"search" json:"search"`
+}
+
+// JackettConfig Jackett配置
+type JackettConfig struct {
+	Host       string `yaml:"host" json:"host"`
+	APIKey     string `yaml:"api_key" json:"api_key"`
+	Timeout    string `yaml:"timeout" json:"timeout"`
+	RetryCount int    `yaml:"retry_count" json:"retry_count"`
+}
+
+// QBittorrentConfig qBittorrent配置
+type QBittorrentConfig struct {
+	Host        string `yaml:"host" json:"host"`
+	Username    string `yaml:"username" json:"username"`
+	Password    string `yaml:"password" json:"password"`
+	Timeout     string `yaml:"timeout" json:"timeout"`
+	RetryCount  int    `yaml:"retry_count" json:"retry_count"`
+	DownloadDir string `yaml:"download_dir" json:"download_dir"`
+}
+
+// TorrentSearchConfig 种子搜索配置
+type TorrentSearchConfig struct {
+	MaxResults int  `yaml:"max_results" json:"max_results"`
+	MinSeeders int  `yaml:"min_seeders" json:"min_seeders"`
+	SortBySize bool `yaml:"sort_by_size" json:"sort_by_size"`
 }

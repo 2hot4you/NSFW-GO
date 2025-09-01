@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>连接测试验证 - NSFW-Go</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .test-result {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-top: 8px;
+            display: none;
+        }
+        
+        .test-result.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .test-result.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">连接测试验证页面</h1>
+        
+        <!-- 数据库测试 -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">数据库连接测试</h2>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <input type="text" id="db-host" placeholder="主机 (如: localhost1)" class="bg-gray-700 text-white px-3 py-2 rounded" value="localhost1">
+                <input type="number" id="db-port" placeholder="端口 (如: 543)" class="bg-gray-700 text-white px-3 py-2 rounded" value="543">
+                <input type="text" id="db-user" placeholder="用户名" class="bg-gray-700 text-white px-3 py-2 rounded" value="nsfw">
+                <input type="password" id="db-password" placeholder="密码" class="bg-gray-700 text-white px-3 py-2 rounded" value="wrongpassword">
+                <input type="text" id="db-name" placeholder="数据库名" class="bg-gray-700 text-white px-3 py-2 rounded" value="nsfw_db">
+                <select id="db-sslmode" class="bg-gray-700 text-white px-3 py-2 rounded">
+                    <option value="disable">禁用SSL</option>
+                    <option value="require">需要SSL</option>
+                </select>
+            </div>
+            <button onclick="testDatabase()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">测试数据库连接</button>
+            <div id="db-test-result" class="test-result"></div>
+        </div>
+        
+        <!-- Redis测试 -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Redis连接测试</h2>
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <input type="text" id="redis-host" placeholder="主机 (如: localhost)" class="bg-gray-700 text-white px-3 py-2 rounded" value="localhost">
+                <input type="number" id="redis-port" placeholder="端口 (如: 6380)" class="bg-gray-700 text-white px-3 py-2 rounded" value="6380">
+                <input type="password" id="redis-password" placeholder="密码(可选)" class="bg-gray-700 text-white px-3 py-2 rounded" value="">
+            </div>
+            <button onclick="testRedis()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded">测试Redis连接</button>
+            <div id="redis-test-result" class="test-result"></div>
+        </div>
+        
+        <!-- Telegram测试 -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Telegram Bot测试</h2>
+            <div class="mb-4">
+                <input type="text" id="telegram-token" placeholder="Bot Token (如: 123456789:INVALID_TOKEN)" class="bg-gray-700 text-white px-3 py-2 rounded w-full" value="123456789:INVALID_TOKEN_FOR_TESTING">
+            </div>
+            <button onclick="testTelegram()" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded">测试Telegram Bot</button>
+            <div id="telegram-test-result" class="test-result"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testDatabase() {
+            const host = document.getElementById('db-host').value;
+            const port = parseInt(document.getElementById('db-port').value);
+            const user = document.getElementById('db-user').value;
+            const password = document.getElementById('db-password').value;
+            const dbname = document.getElementById('db-name').value;
+            const sslmode = document.getElementById('db-sslmode').value;
+            
+            await testConnection('database', {
+                host: host,
+                port: port,
+                user: user,
+                password: password,
+                dbname: dbname,
+                sslmode: sslmode,
+                max_open_conns: 25,
+                max_idle_conns: 10,
+                max_lifetime: 3600
+            }, 'db-test-result');
+        }
+        
+        async function testRedis() {
+            const host = document.getElementById('redis-host').value;
+            const port = parseInt(document.getElementById('redis-port').value);
+            const password = document.getElementById('redis-password').value;
+            
+            await testConnection('redis', {
+                host: host,
+                port: port,
+                password: password,
+                db: 0,
+                pool_size: 10,
+                min_idle_conns: 5
+            }, 'redis-test-result');
+        }
+        
+        async function testTelegram() {
+            const token = document.getElementById('telegram-token').value;
+            
+            await testConnection('telegram', {
+                enabled: true,
+                token: token,
+                webhook_url: "",
+                admin_ids: []
+            }, 'telegram-test-result');
+        }
+        
+        async function testConnection(type, data, resultElementId) {
+            const resultElement = document.getElementById(resultElementId);
+            resultElement.style.display = 'block';
+            resultElement.className = 'test-result';
+            resultElement.textContent = '测试中...';
+            
+            try {
+                const response = await fetch('/api/v1/config/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: type,
+                        config: data
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultElement.className = 'test-result success';
+                    resultElement.textContent = '✓ 连接成功';
+                } else {
+                    resultElement.className = 'test-result error';
+                    resultElement.textContent = '✗ 连接失败: ' + (result.message || '未知错误');
+                }
+            } catch (error) {
+                resultElement.className = 'test-result error';
+                resultElement.textContent = '✗ 测试失败: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

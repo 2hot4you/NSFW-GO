@@ -26,6 +26,12 @@
         .config-tab {
             transition: all 0.3s ease;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            min-height: 48px;
+            white-space: nowrap;
+        }
+        
+        .config-tab:hover {
+            background: rgba(255, 255, 255, 0.05);
         }
         
         .config-tab.active {
@@ -202,7 +208,7 @@
     </nav>
 
     <!-- 主内容区域 -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- 页面头部 -->
         <div class="mb-8">
             <div class="glass-effect rounded-2xl p-8">
@@ -232,42 +238,46 @@
         <!-- 配置标签页 -->
         <div class="mb-6">
             <div class="glass-effect rounded-xl p-2">
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="switchTab('server')" class="config-tab active flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
-                        <i class="fas fa-server mr-2"></i>
-                        <span class="hidden sm:inline">服务器</span>
+                <div class="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-2">
+                    <button onclick="switchTab('server')" class="config-tab active px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center">
+                        <i class="fas fa-server mr-1"></i>
+                        <span>服务器</span>
                     </button>
-                    <button onclick="switchTab('database')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
-                        <i class="fas fa-database mr-2"></i>
-                        <span class="hidden sm:inline">数据库</span>
+                    <button onclick="switchTab('database')" class="config-tab px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center">
+                        <i class="fas fa-database mr-1"></i>
+                        <span>数据库</span>
                     </button>
-                    <button onclick="switchTab('redis')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
-                        <i class="fas fa-memory mr-2"></i>
-                        <span class="hidden sm:inline">Redis</span>
+                    <button onclick="switchTab('redis')" class="config-tab px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center">
+                        <i class="fas fa-memory mr-1"></i>
+                        <span>Redis</span>
                     </button>
-                    <button onclick="switchTab('telegram')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
-                        <i class="fab fa-telegram mr-2"></i>
-                        <span class="hidden sm:inline">Telegram</span>
+                    <button onclick="switchTab('telegram')" class="config-tab px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center">
+                        <i class="fab fa-telegram mr-1"></i>
+                        <span>Telegram</span>
                     </button>
-                    <button onclick="switchTab('crawler')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
-                        <i class="fas fa-spider mr-2"></i>
-                        <span class="hidden sm:inline">爬虫</span>
+                    <button onclick="switchTab('crawler')" class="config-tab px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center">
+                        <i class="fas fa-spider mr-1"></i>
+                        <span>爬虫</span>
                     </button>
-                    <button onclick="switchTab('media')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
-                        <i class="fas fa-folder mr-2"></i>
-                        <span class="hidden sm:inline">媒体库</span>
+                    <button onclick="switchTab('media')" class="config-tab px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center">
+                        <i class="fas fa-folder mr-1"></i>
+                        <span>媒体库</span>
                     </button>
-                    <button onclick="switchTab('security')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
-                        <i class="fas fa-shield-alt mr-2"></i>
-                        <span class="hidden sm:inline">安全</span>
+                    <button onclick="switchTab('security')" class="config-tab px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center">
+                        <i class="fas fa-shield-alt mr-1"></i>
+                        <span>安全</span>
                     </button>
-                    <button onclick="switchTab('notification')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
-                        <i class="fas fa-bell mr-2"></i>
-                        <span class="hidden sm:inline">通知</span>
+                    <button onclick="switchTab('notification')" class="config-tab px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center">
+                        <i class="fas fa-bell mr-1"></i>
+                        <span>通知</span>
                     </button>
-                    <button onclick="switchTab('advanced')" class="config-tab flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all">
-                        <i class="fas fa-tools mr-2"></i>
-                        <span class="hidden sm:inline">高级</span>
+                    <button onclick="switchTab('advanced')" class="config-tab px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center">
+                        <i class="fas fa-tools mr-1"></i>
+                        <span>高级</span>
+                    </button>
+                    <button onclick="switchTab('torrent')" class="config-tab px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center">
+                        <i class="fas fa-download mr-1"></i>
+                        <span>种子下载</span>
                     </button>
                 </div>
             </div>
@@ -793,11 +803,118 @@
                 </div>
             </div>
         </div>
+
+        <!-- 种子下载配置 -->
+        <div id="torrent-section" class="config-section">
+            <div class="glass-effect rounded-2xl p-8">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fas fa-download mr-3 text-cyan-400"></i>
+                    种子下载配置
+                </h2>
+                
+                <!-- Jackett配置 -->
+                <div class="bg-black/20 rounded-xl p-6 border border-white/10 mb-6">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="fas fa-search mr-2 text-blue-400"></i>
+                        Jackett配置
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Jackett主机地址</label>
+                            <input type="text" id="torrent-jackett-host" class="form-input w-full px-4 py-3 rounded-lg" placeholder="http://jackett:9117">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">API密钥</label>
+                            <input type="password" id="torrent-jackett-api-key" class="form-input w-full px-4 py-3 rounded-lg" placeholder="Jackett API密钥">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">连接超时</label>
+                            <input type="text" id="torrent-jackett-timeout" class="form-input w-full px-4 py-3 rounded-lg" placeholder="30s">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">重试次数</label>
+                            <input type="number" id="torrent-jackett-retry-count" class="form-input w-full px-4 py-3 rounded-lg" placeholder="3">
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <button onclick="testJackettConnection()" class="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 px-4 py-2 rounded-lg transition-all">
+                            <i class="fas fa-plug mr-2"></i>测试Jackett连接
+                        </button>
+                        <div id="jackett-test-result" class="test-result"></div>
+                    </div>
+                </div>
+                
+                <!-- qBittorrent配置 -->
+                <div class="bg-black/20 rounded-xl p-6 border border-white/10 mb-6">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="fas fa-download mr-2 text-green-400"></i>
+                        qBittorrent配置
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">qBittorrent主机地址</label>
+                            <input type="text" id="torrent-qbittorrent-host" class="form-input w-full px-4 py-3 rounded-lg" placeholder="http://qbittorrent:8080">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">用户名</label>
+                            <input type="text" id="torrent-qbittorrent-username" class="form-input w-full px-4 py-3 rounded-lg" placeholder="admin">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">密码</label>
+                            <input type="password" id="torrent-qbittorrent-password" class="form-input w-full px-4 py-3 rounded-lg" placeholder="qBittorrent密码">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">连接超时</label>
+                            <input type="text" id="torrent-qbittorrent-timeout" class="form-input w-full px-4 py-3 rounded-lg" placeholder="30s">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">重试次数</label>
+                            <input type="number" id="torrent-qbittorrent-retry-count" class="form-input w-full px-4 py-3 rounded-lg" placeholder="3">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">下载目录</label>
+                            <input type="text" id="torrent-qbittorrent-download-dir" class="form-input w-full px-4 py-3 rounded-lg" placeholder="/downloads">
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <button onclick="testQBittorrentConnection()" class="bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 text-green-400 px-4 py-2 rounded-lg transition-all">
+                            <i class="fas fa-plug mr-2"></i>测试qBittorrent连接
+                        </button>
+                        <div id="qbittorrent-test-result" class="test-result"></div>
+                    </div>
+                </div>
+                
+                <!-- 搜索配置 -->
+                <div class="bg-black/20 rounded-xl p-6 border border-white/10">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="fas fa-cog mr-2 text-purple-400"></i>
+                        搜索配置
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">最大搜索结果数</label>
+                            <input type="number" id="torrent-search-max-results" class="form-input w-full px-4 py-3 rounded-lg" placeholder="20">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">最少做种数</label>
+                            <input type="number" id="torrent-search-min-seeders" class="form-input w-full px-4 py-3 rounded-lg" placeholder="1">
+                        </div>
+                        <div>
+                            <label class="flex items-center space-x-3 text-sm font-medium text-gray-300 mt-6">
+                                <input type="checkbox" id="torrent-search-sort-by-size" class="w-4 h-4 text-purple-600 bg-transparent border-gray-300 rounded focus:ring-purple-500">
+                                <span>按文件大小排序（大文件优先）</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- 通知容器 -->
     <div id="notificationContainer"></div>
 
     <script src="/static/js/config.js"></script>
+    <script src="static/js/privacy-mode.js"></script>
 </body>
 </html> 

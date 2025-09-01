@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq" // PostgreSQL驱动
 
 	"nsfw-go/internal/model"
 	"nsfw-go/internal/service"
@@ -13,18 +16,35 @@ import (
 
 // ConfigHandler 配置管理处理器
 type ConfigHandler struct {
-	configService *service.ConfigService
+	configService      *service.ConfigService
+	configStoreService *service.ConfigStoreService
 }
 
 // NewConfigHandler 创建配置处理器
 func NewConfigHandler(configService *service.ConfigService) *ConfigHandler {
 	return &ConfigHandler{
-		configService: configService,
+		configService:      configService,
+		configStoreService: service.NewConfigStoreService(),
 	}
 }
 
 // GetConfig 获取系统配置
 func (h *ConfigHandler) GetConfig(c *gin.Context) {
+	// 优先从数据库获取配置
+	dbConfigs, err := h.configStoreService.GetAllConfigs()
+	if err == nil && len(dbConfigs) > 0 {
+		// 将扁平的数据库配置转换为嵌套结构
+		nestedConfig := h.convertToNestedConfig(dbConfigs)
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    nestedConfig,
+			"source":  "database",
+		})
+		return
+	}
+
+	// 如果数据库配置不可用，回退到文件配置
 	config, err := h.configService.GetConfig()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -34,12 +54,10 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 		return
 	}
 
-	// 隐藏敏感信息
-	sanitizedConfig := h.sanitizeConfig(config)
-
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    sanitizedConfig,
+		"data":    config,
+		"source":  "file",
 	})
 }
 
@@ -142,6 +160,30 @@ func (h *ConfigHandler) TestConnection(c *gin.Context) {
 		}
 		result = h.configService.TestEmailConnection(emailConfig)
 
+	case "jackett":
+		configBytes, _ := json.Marshal(request.Data)
+		var jackettConfig model.JackettConfig
+		if err := json.Unmarshal(configBytes, &jackettConfig); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "Jackett配置格式错误",
+			})
+			return
+		}
+		result = h.configService.TestJackettConnection(jackettConfig)
+
+	case "qbittorrent":
+		configBytes, _ := json.Marshal(request.Data)
+		var qbittorrentConfig model.QBittorrentConfig
+		if err := json.Unmarshal(configBytes, &qbittorrentConfig); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "qBittorrent配置格式错误",
+			})
+			return
+		}
+		result = h.configService.TestQBittorrentConnection(qbittorrentConfig)
+
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -218,35 +260,65 @@ func (h *ConfigHandler) ValidateConfig(c *gin.Context) {
 	})
 }
 
-// sanitizeConfig 隐藏敏感配置信息
-func (h *ConfigHandler) sanitizeConfig(config *model.SystemConfig) *model.SystemConfig {
-	// 创建配置副本
-	sanitized := *config
+// convertToNestedConfig 将扁平的配置转换为嵌套结构
+func (h *ConfigHandler) convertToNestedConfig(configs []model.ConfigStore) map[string]interface{} {
+	result := make(map[string]interface{})
 
-	// 隐藏敏感信息
-	if sanitized.Database.Password != "" {
-		sanitized.Database.Password = "****"
+	for _, cfg := range configs {
+		keys := strings.Split(cfg.Key, ".")
+		current := result
+
+		// 遍历键路径，创建嵌套结构
+		for i, key := range keys {
+			if i == len(keys)-1 {
+				// 最后一个键，设置值
+				value := h.parseConfigValue(cfg.Value, cfg.Type)
+				current[key] = value
+			} else {
+				// 中间键，确保存在嵌套map
+				if _, exists := current[key]; !exists {
+					current[key] = make(map[string]interface{})
+				}
+				current = current[key].(map[string]interface{})
+			}
+		}
 	}
 
-	if sanitized.Redis.Password != "" {
-		sanitized.Redis.Password = "****"
-	}
+	return result
+}
 
-	if sanitized.Bot.Token != "" {
-		sanitized.Bot.Token = "****"
+// parseConfigValue 根据类型解析配置值
+func (h *ConfigHandler) parseConfigValue(value, valueType string) interface{} {
+	switch valueType {
+	case "int":
+		if intVal, err := strconv.Atoi(value); err == nil {
+			return intVal
+		}
+		return 0
+	case "bool":
+		if boolVal, err := strconv.ParseBool(value); err == nil {
+			return boolVal
+		}
+		return false
+	case "float":
+		if floatVal, err := strconv.ParseFloat(value, 64); err == nil {
+			return floatVal
+		}
+		return 0.0
+	case "array", "json":
+		var result interface{}
+		if err := json.Unmarshal([]byte(value), &result); err == nil {
+			return result
+		}
+		return value
+	case "string":
+		// 去掉JSON字符串的引号
+		var stringVal string
+		if err := json.Unmarshal([]byte(value), &stringVal); err == nil {
+			return stringVal
+		}
+		return value
+	default:
+		return value
 	}
-
-	if sanitized.Security.JWTSecret != "" {
-		sanitized.Security.JWTSecret = "****"
-	}
-
-	if sanitized.Security.PasswordSalt != "" {
-		sanitized.Security.PasswordSalt = "****"
-	}
-
-	if sanitized.Notifications.Email.Password != "" {
-		sanitized.Notifications.Email.Password = "****"
-	}
-
-	return &sanitized
 }

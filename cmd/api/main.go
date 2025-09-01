@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"nsfw-go/internal/api/routes"
 	"nsfw-go/internal/config"
@@ -13,6 +14,7 @@ import (
 	"nsfw-go/migrations"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq" // PostgreSQL驱动
 )
 
 var (
@@ -44,24 +46,26 @@ func main() {
 	// 加载配置
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		log.Fatalf("加载配置失败: %v", err)
+		log.Printf("从文件加载配置失败: %v，将使用默认配置", err)
+		// 使用默认配置
+		cfg = getDefaultConfig()
 	}
 
 	// 如果指定了migrate参数，执行数据库迁移
 	if *migrate {
 		log.Println("开始数据库迁移...")
 		dsn := cfg.Database.GetDSN()
-		
+
 		// 检查数据库连接
 		if err := migrations.CheckConnection(dsn); err != nil {
 			log.Fatalf("数据库连接失败: %v", err)
 		}
-		
+
 		// 执行迁移
 		if err := migrations.Migrate(dsn); err != nil {
 			log.Fatalf("数据库迁移失败: %v", err)
 		}
-		
+
 		log.Println("✓ 数据库迁移完成")
 		return
 	}
@@ -72,6 +76,14 @@ func main() {
 		log.Fatalf("数据库初始化失败: %v", err)
 	}
 	defer database.Close()
+
+	// 数据库初始化后，尝试从数据库加载配置
+	if dbCfg, err := config.LoadWithDB(*configPath, database.DB); err == nil {
+		cfg = dbCfg
+		log.Println("✓ 从数据库加载配置成功")
+	} else {
+		log.Printf("从数据库加载配置失败: %v，使用文件/默认配置", err)
+	}
 
 	// 设置Gin模式
 	if cfg.Server.Mode == "release" {
@@ -90,7 +102,7 @@ func main() {
 	log.Printf("🌐 服务器地址: http://localhost%s", port)
 	log.Printf("📋 健康检查: http://localhost%s/health", port)
 	log.Printf("📊 API统计: http://localhost%s/api/v1/stats", port)
-	
+
 	if err := r.Run(port); err != nil {
 		log.Fatalf("启动服务器失败: %v", err)
 	}
@@ -196,7 +208,7 @@ Telegram Bot:
   格式: %s
   输出: %s
 ========================================
-`, 
+`,
 		cfg.Server.GetAddr(),
 		cfg.Server.Mode,
 		cfg.Server.EnableCORS,
@@ -226,4 +238,87 @@ Telegram Bot:
 		cfg.Log.Output,
 	)
 }
- 
+
+// getDefaultConfig 获取默认配置
+func getDefaultConfig() *config.Config {
+	// 解析时间字符串
+	readTimeout, _ := time.ParseDuration("30s")
+	writeTimeout, _ := time.ParseDuration("30s")
+	jwtExpiry, _ := time.ParseDuration("24h")
+	requestDelay, _ := time.ParseDuration("2s")
+	timeout, _ := time.ParseDuration("30s")
+
+	return &config.Config{
+		Server: config.ServerConfig{
+			Host:          "0.0.0.0",
+			Port:          8080,
+			Mode:          "debug",
+			ReadTimeout:   readTimeout,
+			WriteTimeout:  writeTimeout,
+			EnableCORS:    true,
+			EnableSwagger: true,
+		},
+		Database: config.DatabaseConfig{
+			Host:         "postgres",
+			Port:         5432,
+			User:         "nsfw",
+			Password:     "nsfw123",
+			DBName:       "nsfw_db",
+			SSLMode:      "disable",
+			MaxOpenConns: 25,
+			MaxIdleConns: 10,
+			MaxLifetime:  3600,
+		},
+		Redis: config.RedisConfig{
+			Host:         "redis",
+			Port:         6379,
+			Password:     "",
+			DB:           0,
+			PoolSize:     10,
+			MinIdleConns: 5,
+		},
+		Media: config.MediaConfig{
+			BasePath:      "/MediaCenter/NSFW/Hub/#Done",
+			ScanInterval:  24,
+			SupportedExts: []string{".mp4", ".mkv", ".avi", ".mov", ".wmv"},
+			MinFileSize:   100,
+			MaxFileSize:   10240,
+		},
+		Security: config.SecurityConfig{
+			JWTSecret:    "default-jwt-secret",
+			JWTExpiry:    jwtExpiry,
+			PasswordSalt: "default-salt",
+			RateLimitRPS: 100,
+			AllowedIPs:   []string{},
+			EnableAuth:   false,
+		},
+		Log: config.LogConfig{
+			Level:      "info",
+			Format:     "json",
+			Output:     "stdout",
+			Filename:   "",
+			MaxSize:    100,
+			MaxBackups: 7,
+			MaxAge:     30,
+			Compress:   true,
+		},
+		Bot: config.BotConfig{
+			Enabled:    false,
+			Token:      "",
+			WebhookURL: "",
+			AdminIDs:   []int64{},
+		},
+		Crawler: config.CrawlerConfig{
+			UserAgents: []string{
+				"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+				"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+			},
+			ProxyEnabled:  false,
+			ProxyList:     []string{},
+			RequestDelay:  requestDelay,
+			RetryCount:    3,
+			Timeout:       timeout,
+			ConcurrentMax: 5,
+		},
+	}
+}

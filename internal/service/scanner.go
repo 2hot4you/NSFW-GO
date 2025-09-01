@@ -16,30 +16,35 @@ import (
 )
 
 const (
-	MediaLibraryPath = "/MediaCenter/NSFW/Hub/#Done"
-	ScanInterval     = 15 * time.Minute // 15分钟扫描一次
+	ScanInterval = 15 * time.Minute // 15分钟扫描一次
 )
 
 // ScannerService 扫描服务
 type ScannerService struct {
-	localMovieRepo repo.LocalMovieRepository
-	ctx            context.Context
-	cancel         context.CancelFunc
+	localMovieRepo   repo.LocalMovieRepository
+	mediaLibraryPath string
+	ctx              context.Context
+	cancel           context.CancelFunc
 }
 
 // NewScannerService 创建扫描服务
-func NewScannerService(localMovieRepo repo.LocalMovieRepository) *ScannerService {
+func NewScannerService(localMovieRepo repo.LocalMovieRepository, mediaLibraryPath string) *ScannerService {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ScannerService{
-		localMovieRepo: localMovieRepo,
-		ctx:            ctx,
-		cancel:         cancel,
+		localMovieRepo:   localMovieRepo,
+		mediaLibraryPath: mediaLibraryPath,
+		ctx:              ctx,
+		cancel:           cancel,
 	}
 }
 
 // Start 启动定时扫描
 func (s *ScannerService) Start() {
-	log.Println("🔍 启动本地影片扫描服务，每15分钟扫描一次")
+	if s.mediaLibraryPath == "" {
+		log.Println("📂 媒体库路径未配置，跳过本地影片扫描")
+		return
+	}
+	log.Printf("🔍 启动本地影片扫描服务，媒体库路径: %s，每15分钟扫描一次", s.mediaLibraryPath)
 
 	// 立即执行一次扫描
 	go s.scanAndStore()
@@ -73,7 +78,7 @@ func (s *ScannerService) scanAndStore() {
 	startTime := time.Now()
 
 	// 扫描文件系统
-	movies, err := s.scanDirectory(MediaLibraryPath)
+	movies, err := s.scanDirectory(s.mediaLibraryPath)
 	if err != nil {
 		log.Printf("❌ 扫描失败: %v", err)
 		return
@@ -307,7 +312,7 @@ func (s *ScannerService) findFanart(movieDir string) (string, string, bool) {
 			if fileNameWithoutExt == fanartName {
 				fullPath := filepath.Join(movieDir, file.Name())
 				// 生成相对于媒体库的URL路径
-				relPath, err := filepath.Rel(MediaLibraryPath, fullPath)
+				relPath, err := filepath.Rel(s.mediaLibraryPath, fullPath)
 				if err != nil {
 					continue
 				}

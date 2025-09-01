@@ -77,6 +77,10 @@ func autoMigrate(db *gorm.DB) error {
 		&model.WatchHistory{},
 		&model.Favorite{},
 		&model.LocalMovie{},
+		&model.ConfigStore{},
+		&model.ConfigCategory{},
+		&model.ConfigTemplate{},
+		&model.ConfigBackup{},
 	)
 }
 
