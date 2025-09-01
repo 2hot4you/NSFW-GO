@@ -28,12 +28,69 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
         }
         
         .movie-card:hover {
             transform: translateY(-2px);
             background: rgba(255, 255, 255, 0.08);
             border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .movie-card .card-image {
+            position: relative;
+            height: 240px;
+            overflow: hidden;
+            border-radius: 0.75rem 0.75rem 0 0;
+        }
+
+        .movie-card .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .movie-card:hover .card-image img {
+            transform: scale(1.05);
+        }
+
+        .movie-card .card-content {
+            padding: 1rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .movie-card .card-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            line-height: 1.3;
+            color: white;
+            margin-bottom: 0.75rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: 2.6em;
+        }
+
+        .movie-card .card-meta {
+            font-size: 0.8rem;
+            color: #9CA3AF;
+            line-height: 1.4;
+        }
+
+        .movie-card .card-meta > * {
+            margin-bottom: 0.5rem;
+        }
+
+        .movie-card .card-meta > *:last-child {
+            margin-bottom: 0;
         }
         
         .search-input {
@@ -101,6 +158,44 @@
             background: rgba(245, 158, 11, 0.2);
             color: #fbbf24;
             border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        /* 改善网格响应式布局 */
+        @media (max-width: 640px) {
+            .movie-card .card-content {
+                padding: 0.75rem;
+            }
+            .movie-card .card-title {
+                font-size: 0.85rem;
+                margin-bottom: 0.5rem;
+            }
+            .movie-card .card-meta {
+                font-size: 0.75rem;
+            }
+        }
+
+        /* 改善大屏幕显示 */
+        @media (min-width: 1536px) {
+            .movie-card .card-image {
+                height: 280px;
+            }
+        }
+
+        /* 优化下载按钮 */
+        .download-btn {
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 优化徽章样式 */
+        .count-badge, .rating-badge {
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
     </style>
@@ -241,7 +336,7 @@
                         <i class="fas fa-film mr-3 text-blue-400"></i>本地影片
                         <span id="local-count" class="count-badge ml-3 px-3 py-1 text-sm rounded-full font-medium">0</span>
                     </h3>
-                    <div id="local-movies-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div id="local-movies-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                         <!-- 本地影片卡片 -->
                     </div>
                 </div>
@@ -254,7 +349,7 @@
                         <i class="fas fa-trophy mr-3 text-yellow-400"></i>排行榜影片
                         <span id="rankings-count" class="count-badge yellow ml-3 px-3 py-1 text-sm rounded-full font-medium">0</span>
                     </h3>
-                    <div id="rankings-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div id="rankings-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                         <!-- 排行榜影片卡片 -->
                     </div>
                 </div>

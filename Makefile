@@ -131,7 +131,11 @@ db-reset:
 	@read -p "确认重置数据库? [y/N]: " confirm; \
 	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
 		echo "正在重置数据库..."; \
-		docker-compose exec postgres psql -U nsfw -d nsfw_db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"; \
+		if command -v docker-compose >/dev/null 2>&1; then \
+			docker-compose exec postgres psql -U nsfw -d nsfw_db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"; \
+		else \
+			docker compose exec postgres psql -U nsfw -d nsfw_db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"; \
+		fi; \
 		make migrate; \
 	else \
 		echo "操作已取消"; \
@@ -141,9 +145,13 @@ db-reset:
 .PHONY: db-check
 db-check:
 	@echo "正在检查数据库连接..."
-	@if docker-compose ps postgres | grep -q "Up"; then \
+	@if (command -v docker-compose >/dev/null 2>&1 && docker-compose ps postgres | grep -q "Up") || (docker compose ps postgres | grep -q "Up"); then \
 		echo "✓ PostgreSQL 容器正在运行"; \
-		docker-compose exec postgres pg_isready -U nsfw; \
+		if command -v docker-compose >/dev/null 2>&1; then \
+			docker-compose exec postgres pg_isready -U nsfw; \
+		else \
+			docker compose exec postgres pg_isready -U nsfw; \
+		fi; \
 	else \
 		echo "✗ PostgreSQL 容器未运行"; \
 		exit 1; \
@@ -161,7 +169,11 @@ docker:
 .PHONY: compose
 compose:
 	@echo "正在启动docker-compose..."
-	docker-compose up -d
+	@if command -v docker-compose >/dev/null 2>&1; then \
+		docker-compose up -d; \
+	else \
+		docker compose up -d; \
+	fi
 	@echo "✓ 服务已启动"
 	@echo "等待服务就绪..."
 	@sleep 5
@@ -171,13 +183,21 @@ compose:
 .PHONY: compose-down
 compose-down:
 	@echo "正在停止服务..."
-	docker-compose down
+	@if command -v docker-compose >/dev/null 2>&1; then \
+		docker-compose down; \
+	else \
+		docker compose down; \
+	fi
 	@echo "✓ 服务已停止"
 
 # 查看日志
 .PHONY: logs
 logs:
-	docker-compose logs -f
+	@if command -v docker-compose >/dev/null 2>&1; then \
+		docker-compose logs -f; \
+	else \
+		docker compose logs -f; \
+	fi
 
 # 构建发布版本
 .PHONY: release
@@ -219,7 +239,11 @@ clean:
 .PHONY: clean-all
 clean-all: clean
 	@echo "正在清理所有文件..."
-	docker-compose down -v
+	@if command -v docker-compose >/dev/null 2>&1; then \
+		docker-compose down -v; \
+	else \
+		docker compose down -v; \
+	fi
 	docker rmi $(APP_NAME):latest $(APP_NAME):$(VERSION) 2>/dev/null || true
 	rm -rf logs/
 	@echo "✓ 所有文件已清理"

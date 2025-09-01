@@ -259,8 +259,8 @@ func getDefaultConfig() *config.Config {
 			EnableSwagger: true,
 		},
 		Database: config.DatabaseConfig{
-			Host:         "postgres",
-			Port:         5432,
+			Host:         "localhost",
+			Port:         5433,
 			User:         "nsfw",
 			Password:     "nsfw123",
 			DBName:       "nsfw_db",
@@ -270,8 +270,8 @@ func getDefaultConfig() *config.Config {
 			MaxLifetime:  3600,
 		},
 		Redis: config.RedisConfig{
-			Host:         "redis",
-			Port:         6379,
+			Host:         "localhost",
+			Port:         6380,
 			Password:     "",
 			DB:           0,
 			PoolSize:     10,

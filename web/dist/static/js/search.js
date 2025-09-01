@@ -343,25 +343,26 @@ class SearchPage {
         const fileSize = this.formatFileSize(movie.size);
         
         card.innerHTML = `
-            <div class="relative">
-                <img src="${imageUrl}" alt="${movie.title}" class="w-full h-48 object-cover" 
+            <div class="card-image">
+                <img src="${imageUrl}" alt="${movie.title}" 
                      onerror="this.src='static/images/placeholder.svg'">
-                <div class="absolute top-3 left-3">
-                    <span class="count-badge px-3 py-1 rounded-full text-xs font-semibold">
+                <div class="absolute top-2 left-2">
+                    <span class="count-badge px-2 py-1 rounded-full text-xs font-semibold">
                         <i class="fas fa-hdd mr-1"></i>本地
                     </span>
                 </div>
             </div>
-            <div class="p-4">
-                <h3 class="font-semibold text-white mb-3 line-clamp-2" title="${movie.title}">
-                    ${movie.title}
-                </h3>
-                <div class="text-sm text-gray-400 space-y-2">
-                    ${movie.code ? `<p><i class="fas fa-tag mr-2 text-blue-400"></i>番号: ${movie.code}</p>` : ''}
-                    ${movie.actress ? `<p><i class="fas fa-user mr-2 text-purple-400"></i>演员: ${movie.actress}</p>` : ''}
-                    ${fileSize ? `<p><i class="fas fa-file mr-2 text-green-400"></i>大小: ${fileSize}</p>` : ''}
-                    ${movie.format ? `<p><i class="fas fa-video mr-2 text-yellow-400"></i>格式: ${movie.format}</p>` : ''}
-                    <p><i class="fas fa-folder mr-2 text-gray-500"></i>路径: ${movie.path.split('/').pop()}</p>
+            <div class="card-content">
+                <div>
+                    <h3 class="card-title" title="${movie.title}">
+                        ${movie.title}
+                    </h3>
+                </div>
+                <div class="card-meta">
+                    ${movie.code ? `<div class="flex items-center"><i class="fas fa-tag mr-2 text-blue-400 w-3"></i><span>番号: ${movie.code}</span></div>` : ''}
+                    ${movie.actress ? `<div class="flex items-center"><i class="fas fa-user mr-2 text-purple-400 w-3"></i><span>演员: ${movie.actress}</span></div>` : ''}
+                    ${fileSize ? `<div class="flex items-center"><i class="fas fa-file mr-2 text-green-400 w-3"></i><span>大小: ${fileSize}</span></div>` : ''}
+                    ${movie.format ? `<div class="flex items-center"><i class="fas fa-video mr-2 text-yellow-400 w-3"></i><span>格式: ${movie.format}</span></div>` : ''}
                 </div>
             </div>
         `;
@@ -372,39 +373,44 @@ class SearchPage {
     // 创建排行榜影片卡片
     createRankingCard(ranking) {
         const card = document.createElement('div');
-        card.className = 'movie-card bg-gray-800 rounded-lg overflow-hidden relative group';
+        card.className = 'movie-card rounded-xl overflow-hidden';
         
         card.innerHTML = `
-            <div class="aspect-w-2 aspect-h-3 relative">
-                ${ranking.cover_url ? `<img src="${ranking.cover_url}" alt="${ranking.title}" class="object-cover w-full h-full rounded-t-lg">` : `
-                    <div class="w-full h-full flex items-center justify-center bg-gray-700 rounded-t-lg">
+            <div class="card-image">
+                ${ranking.cover_url ? `
+                    <img src="${ranking.cover_url}" alt="${ranking.title}" onerror="this.src='static/images/placeholder.svg'">
+                ` : `
+                    <div class="w-full h-full flex items-center justify-center bg-gray-700">
                         <i class="fas fa-film text-4xl text-gray-400"></i>
                     </div>
                 `}
-                <div class="absolute top-3 left-3">
-                    <span class="count-badge yellow px-3 py-1 rounded-full text-xs font-semibold">
+                <div class="absolute top-2 left-2">
+                    <span class="count-badge yellow px-2 py-1 rounded-full text-xs font-semibold">
                         <i class="fas fa-trophy mr-1"></i>#${ranking.position}
                     </span>
                 </div>
                 ${ranking.rating > 0 ? `
-                    <div class="absolute top-3 right-3" style="z-index: 100000;">
-                        <span class="rating-badge flex items-center px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                    <div class="absolute top-2 right-2">
+                        <span class="rating-badge flex items-center px-2 py-1 rounded-full text-xs font-semibold">
                             <i class="fas fa-star mr-1"></i>
                             ${ranking.rating.toFixed(1)}
-                    </span>
-                </div>
+                        </span>
+                    </div>
                 ` : ''}
             </div>
-            <div class="p-4">
-                <h3 class="font-semibold text-white mb-3 line-clamp-2" title="${ranking.title}">
-                    ${ranking.title}
-                </h3>
-                <div class="text-sm text-gray-400 space-y-2">
-                    ${ranking.code ? `
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center">
-                                <i class="fas fa-tag mr-2 text-blue-400"></i>番号: ${ranking.code}
+            <div class="card-content">
+                <div>
+                    <h3 class="card-title" title="${ranking.title}">
+                        ${ranking.title}
+                    </h3>
                 </div>
+                <div class="card-meta">
+                    ${ranking.code ? `
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <i class="fas fa-tag mr-2 text-blue-400 w-3"></i>
+                                <span>${ranking.code}</span>
+                            </div>
                             ${!ranking.local_exists ? `
                                 <button onclick="searchPage.downloadMovie('${ranking.code}', '${ranking.title.replace(/'/g, "\\'")}', this)" 
                                         class="download-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium flex items-center transition-colors duration-200">
@@ -413,12 +419,12 @@ class SearchPage {
                             ` : `
                                 <span class="count-badge green inline-flex items-center px-2 py-1 text-xs rounded-full font-medium">
                                     <i class="fas fa-check mr-1"></i>已有
-                    </span>
+                                </span>
                             `}
                         </div>
                     ` : ''}
-                    ${ranking.rating > 0 ? `<p><i class="fas fa-star mr-2 text-yellow-400"></i>评分: ${ranking.rating.toFixed(1)}</p>` : ''}
-                    ${ranking.release_date ? `<p><i class="fas fa-calendar mr-2 text-green-400"></i>发行: ${ranking.release_date}</p>` : ''}
+                    ${ranking.rating > 0 ? `<div class="flex items-center"><i class="fas fa-star mr-2 text-yellow-400 w-3"></i><span>评分: ${ranking.rating.toFixed(1)}</span></div>` : ''}
+                    ${ranking.release_date ? `<div class="flex items-center"><i class="fas fa-calendar mr-2 text-green-400 w-3"></i><span>发行: ${ranking.release_date}</span></div>` : ''}
                 </div>
             </div>
         `;
@@ -500,7 +506,7 @@ class SearchPage {
         if (javdbData.code) {
             // 影片搜索结果 - 使用网格布局
             const gridContainer = document.createElement('div');
-            gridContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6';
+            gridContainer.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4';
             
             const movieCard = this.createJAVDbMovieCard(javdbData);
             gridContainer.appendChild(movieCard);
@@ -515,71 +521,55 @@ class SearchPage {
     // 创建JAVDb影片卡片
     createJAVDbMovieCard(movieData) {
         const card = document.createElement('div');
-        card.className = 'movie-card bg-gray-800 rounded-lg overflow-hidden relative group';
+        card.className = 'movie-card rounded-xl overflow-hidden';
         
-        // 添加封面图片
-        const coverContainer = document.createElement('div');
-        coverContainer.className = 'aspect-w-2 aspect-h-3 relative';
-        
-        const img = document.createElement('img');
-        img.src = movieData.cover_url || '/static/images/placeholder.jpg';
-        img.alt = movieData.title;
-        img.className = 'object-cover w-full h-full rounded-t-lg';
-        coverContainer.appendChild(img);
-        
-        // 添加评分徽章
-        if (movieData.rating > 0) {
-            const ratingBadge = document.createElement('div');
-            ratingBadge.className = 'absolute top-2 right-2 bg-orange-500 text-white px-2 py-1 rounded-full text-sm font-medium flex items-center';
-            ratingBadge.style.zIndex = '100000';
-            ratingBadge.innerHTML = `<i class="fas fa-star mr-1"></i>${movieData.rating.toFixed(1)}`;
-            coverContainer.appendChild(ratingBadge);
-        }
-        
-        card.appendChild(coverContainer);
-        
-        // 添加影片信息
-        const info = document.createElement('div');
-        info.className = 'p-4';
-        
-        const title = document.createElement('h3');
-        title.className = 'text-lg font-medium text-white mb-2';
-        title.textContent = movieData.title;
-        info.appendChild(title);
-        
-        const meta = document.createElement('div');
-        meta.className = 'text-sm text-gray-400 space-y-2';
-        
-        // 番号和下载按钮的容器
-        const codeContainer = document.createElement('div');
-        codeContainer.className = 'flex items-center justify-between mb-2';
-        
-        const codeDiv = document.createElement('div');
-        codeDiv.className = 'flex items-center';
-        codeDiv.innerHTML = `<i class="fas fa-hashtag mr-1"></i>${movieData.code}`;
-        
-        // 添加下载按钮
-        const downloadBtn = document.createElement('button');
-        downloadBtn.className = 'download-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium flex items-center transition-colors duration-200';
-        downloadBtn.innerHTML = '<i class="fas fa-download mr-1"></i>下载';
-        downloadBtn.onclick = async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            await this.searchAndDownloadTorrent(movieData.code);
-        };
-        
-        codeContainer.appendChild(codeDiv);
-        codeContainer.appendChild(downloadBtn);
-        meta.appendChild(codeContainer);
-        
-        if (movieData.release_date) {
-            const date = document.createElement('div');
-            date.innerHTML = `<i class="far fa-calendar mr-1"></i>${movieData.release_date}`;
-            meta.appendChild(date);
-        }
-        
-        info.appendChild(meta);
-        card.appendChild(info);
+        card.innerHTML = `
+            <div class="card-image">
+                <img src="${movieData.cover_url || 'static/images/placeholder.svg'}" 
+                     alt="${movieData.title}" 
+                     onerror="this.src='static/images/placeholder.svg'">
+                <div class="absolute top-2 left-2">
+                    <span class="count-badge green px-2 py-1 rounded-full text-xs font-semibold">
+                        <i class="fas fa-globe mr-1"></i>在线
+                    </span>
+                </div>
+                ${movieData.rating > 0 ? `
+                    <div class="absolute top-2 right-2">
+                        <span class="rating-badge flex items-center px-2 py-1 rounded-full text-xs font-semibold">
+                            <i class="fas fa-star mr-1"></i>
+                            ${movieData.rating.toFixed(1)}
+                        </span>
+                    </div>
+                ` : ''}
+            </div>
+            <div class="card-content">
+                <div>
+                    <h3 class="card-title" title="${movieData.title}">
+                        ${movieData.title}
+                    </h3>
+                </div>
+                <div class="card-meta">
+                    ${movieData.code ? `
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <i class="fas fa-tag mr-2 text-blue-400 w-3"></i>
+                                <span>${movieData.code}</span>
+                            </div>
+                            <button onclick="searchPage.downloadMovie('${movieData.code}', '${movieData.title.replace(/'/g, "\\'")}', this)" 
+                                    class="download-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium flex items-center transition-colors duration-200">
+                                <i class="fas fa-download mr-1"></i>下载
+                            </button>
+                        </div>
+                    ` : ''}
+                    ${movieData.release_date ? `<div class="flex items-center"><i class="fas fa-calendar mr-2 text-green-400 w-3"></i><span>发行: ${movieData.release_date}</span></div>` : ''}
+                    <div class="flex items-center mt-2">
+                        <a href="${movieData.detail_url}" target="_blank" class="text-blue-400 hover:text-blue-300 text-xs transition-colors flex items-center">
+                            <i class="fas fa-external-link-alt mr-1"></i>在JAVDb查看详情
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
         
         return card;
     }
