@@ -170,12 +170,14 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			// 配置管理
 			config := v1.Group("/config")
 			{
-				config.GET("", configHandler.GetConfig)                            // 获取系统配置
-				config.POST("", configHandler.SaveConfig)                          // 保存系统配置
+				config.GET("", configHandler.GetConfig)                            // 获取系统配置（从数据库）
+				config.POST("", configHandler.SaveConfig)                          // 保存系统配置（到数据库）
 				config.POST("/test", configHandler.TestConnection)                 // 测试连接
 				config.POST("/validate", configHandler.ValidateConfig)             // 验证配置
+				config.GET("/categories", configHandler.GetConfigCategories)       // 获取配置分类
+				config.GET("/category/:category", configHandler.GetConfigByCategory) // 按分类获取配置
 				config.GET("/backups", configHandler.GetConfigBackups)             // 获取备份列表
-				config.POST("/restore/:backup", configHandler.RestoreConfigBackup) // 恢复备份
+				config.POST("/restore/:id", configHandler.RestoreConfigBackup)     // 恢复备份
 
 				// 数据库配置管理
 				store := config.Group("/store")

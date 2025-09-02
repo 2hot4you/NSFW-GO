@@ -178,9 +178,31 @@ func loadFromDatabase(config *Config, db *gorm.DB) error {
 		return err
 	}
 
+	// 如果数据库中没有配置，返回错误
+	if len(configs) == 0 {
+		return fmt.Errorf("no configurations found in database")
+	}
+
 	// 将数据库配置应用到 viper
 	for _, cfg := range configs {
-		viper.Set(cfg.Key, cfg.Value)
+		// 根据类型解析值
+		switch cfg.Type {
+		case "string":
+			viper.Set(cfg.Key, cfg.Value)
+		case "int":
+			var intVal int
+			fmt.Sscanf(cfg.Value, "%d", &intVal)
+			viper.Set(cfg.Key, intVal)
+		case "bool":
+			viper.Set(cfg.Key, cfg.Value == "true")
+		case "float":
+			var floatVal float64
+			fmt.Sscanf(cfg.Value, "%f", &floatVal)
+			viper.Set(cfg.Key, floatVal)
+		default:
+			// 对于复杂类型，直接设置字符串值
+			viper.Set(cfg.Key, cfg.Value)
+		}
 	}
 
 	// 重新解析配置到结构体

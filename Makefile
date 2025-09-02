@@ -37,6 +37,11 @@ help:
 	@echo "  make db-reset    重置数据库"
 	@echo "  make db-check    检查数据库连接"
 	@echo ""
+	@echo "配置管理:"
+	@echo "  make config-sync     同步配置到数据库"
+	@echo "  make config-show     显示数据库配置"
+	@echo "  make config-backup   备份数据库配置"
+	@echo ""
 	@echo "部署命令:"
 	@echo "  make docker      构建Docker镜像"
 	@echo "  make compose     使用docker-compose启动"
@@ -156,6 +161,30 @@ db-check:
 		echo "✗ PostgreSQL 容器未运行"; \
 		exit 1; \
 	fi
+
+# 配置管理命令
+.PHONY: config-sync
+config-sync:
+	@echo "正在构建配置同步工具..."
+	@go build -o bin/config-sync cmd/config-sync/main.go
+	@echo "正在同步配置到数据库..."
+	@./bin/config-sync -config config.yaml -mode sync -backup
+	@echo "✓ 配置同步完成"
+
+.PHONY: config-show
+config-show:
+	@echo "正在构建配置同步工具..."
+	@go build -o bin/config-sync cmd/config-sync/main.go
+	@echo "数据库配置项:"
+	@./bin/config-sync -config config.yaml -mode show
+
+.PHONY: config-backup
+config-backup:
+	@echo "正在构建配置同步工具..."
+	@go build -o bin/config-sync cmd/config-sync/main.go
+	@echo "正在备份数据库配置..."
+	@./bin/config-sync -config config.yaml -backup
+	@echo "✓ 配置备份完成"
 
 # 构建Docker镜像
 .PHONY: docker

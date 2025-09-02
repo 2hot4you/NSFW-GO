@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq" // PostgreSQL驱动
@@ -61,11 +62,11 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 	})
 }
 
-// SaveConfig 保存系统配置
+// SaveConfig 保存系统配置到数据库
 func (h *ConfigHandler) SaveConfig(c *gin.Context) {
-	var config model.SystemConfig
+	var requestData map[string]interface{}
 
-	if err := c.ShouldBindJSON(&config); err != nil {
+	if err := c.ShouldBindJSON(&requestData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"message": fmt.Sprintf("配置格式错误: %s", err.Error()),
@@ -73,27 +74,42 @@ func (h *ConfigHandler) SaveConfig(c *gin.Context) {
 		return
 	}
 
-	// 验证配置
-	if errors := h.configService.ValidateConfig(&config); len(errors) > 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "配置验证失败",
-			"errors":  errors,
-		})
-		return
+	// 创建备份
+	backupName := fmt.Sprintf("api_backup_%d", time.Now().Unix())
+	if err := h.configStoreService.CreateBackup(backupName, "API配置更新前备份", "api"); err != nil {
+		// 备份失败不阻止保存，只记录警告
+		fmt.Printf("Warning: Failed to create backup: %v\n", err)
 	}
 
-	if err := h.configService.SaveConfig(&config); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": fmt.Sprintf("保存配置失败: %s", err.Error()),
-		})
-		return
+	// 将嵌套的配置结构扁平化并保存到数据库
+	flatConfigs := h.flattenConfig(requestData, "")
+	
+	// 批量更新配置到数据库
+	for key, value := range flatConfigs {
+		valueStr, valueType := h.serializeConfigValue(value)
+		category := h.extractCategory(key)
+		
+		if err := h.configStoreService.SetConfig(key, valueStr, valueType, category, "", false); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": fmt.Sprintf("保存配置失败: %s", err.Error()),
+			})
+			return
+		}
+	}
+
+	// 同时保存到文件（作为备份）
+	var config model.SystemConfig
+	configBytes, _ := json.Marshal(requestData)
+	if err := json.Unmarshal(configBytes, &config); err == nil {
+		// 尝试保存到文件，失败不影响响应
+		h.configService.SaveConfig(&config)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "配置保存成功",
+		"backup":  backupName,
 	})
 }
 
@@ -198,9 +214,70 @@ func (h *ConfigHandler) TestConnection(c *gin.Context) {
 	})
 }
 
+// GetConfigByCategory 根据分类获取配置
+func (h *ConfigHandler) GetConfigByCategory(c *gin.Context) {
+	category := c.Param("category")
+	
+	configs, err := h.configStoreService.GetConfigsByCategory(category)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("获取配置失败: %s", err.Error()),
+		})
+		return
+	}
+
+	// 转换为嵌套结构
+	result := make(map[string]interface{})
+	for _, cfg := range configs {
+		// 移除分类前缀
+		key := strings.TrimPrefix(cfg.Key, category+".")
+		value := h.parseConfigValue(cfg.Value, cfg.Type)
+		result[key] = value
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+		"category": category,
+	})
+}
+
+// GetConfigCategories 获取所有配置分类
+func (h *ConfigHandler) GetConfigCategories(c *gin.Context) {
+	configs, err := h.configStoreService.GetAllConfigs()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": fmt.Sprintf("获取配置失败: %s", err.Error()),
+		})
+		return
+	}
+
+	// 提取所有分类
+	categoryMap := make(map[string]int)
+	for _, cfg := range configs {
+		categoryMap[cfg.Category]++
+	}
+
+	categories := []map[string]interface{}{}
+	for cat, count := range categoryMap {
+		categories = append(categories, map[string]interface{}{
+			"name":  cat,
+			"count": count,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    categories,
+	})
+}
+
 // GetConfigBackups 获取配置备份列表
 func (h *ConfigHandler) GetConfigBackups(c *gin.Context) {
-	backups, err := h.configService.GetConfigBackups()
+	// 从数据库获取备份列表
+	backups, err := h.configStoreService.GetBackups()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -217,16 +294,26 @@ func (h *ConfigHandler) GetConfigBackups(c *gin.Context) {
 
 // RestoreConfigBackup 恢复配置备份
 func (h *ConfigHandler) RestoreConfigBackup(c *gin.Context) {
-	backupName := c.Param("backup")
-	if backupName == "" {
+	backupID := c.Param("id")
+	if backupID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": "备份文件名不能为空",
+			"message": "备份ID不能为空",
 		})
 		return
 	}
 
-	if err := h.configService.RestoreConfigBackup(backupName); err != nil {
+	// 将字符串ID转换为uint
+	id, err := strconv.ParseUint(backupID, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的备份ID",
+		})
+		return
+	}
+
+	if err := h.configStoreService.RestoreFromBackup(uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": fmt.Sprintf("恢复备份失败: %s", err.Error()),
@@ -291,8 +378,12 @@ func (h *ConfigHandler) convertToNestedConfig(configs []model.ConfigStore) map[s
 func (h *ConfigHandler) parseConfigValue(value, valueType string) interface{} {
 	switch valueType {
 	case "int":
-		if intVal, err := strconv.Atoi(value); err == nil {
+		var intVal int
+		if err := json.Unmarshal([]byte(value), &intVal); err == nil {
 			return intVal
+		}
+		if i, err := strconv.Atoi(value); err == nil {
+			return i
 		}
 		return 0
 	case "bool":
@@ -308,6 +399,13 @@ func (h *ConfigHandler) parseConfigValue(value, valueType string) interface{} {
 	case "array", "json":
 		var result interface{}
 		if err := json.Unmarshal([]byte(value), &result); err == nil {
+			// 特殊处理时间相关的配置
+			if num, ok := result.(float64); ok {
+				// 检查是否是时间纳秒值，转换为字符串格式
+				if num > 1000000000 { // 大于1秒的纳秒值
+					return fmt.Sprintf("%ds", int(num/1000000000))
+				}
+			}
 			return result
 		}
 		return value
@@ -321,4 +419,67 @@ func (h *ConfigHandler) parseConfigValue(value, valueType string) interface{} {
 	default:
 		return value
 	}
+}
+
+// flattenConfig 将嵌套的配置结构扁平化
+func (h *ConfigHandler) flattenConfig(config map[string]interface{}, prefix string) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	for key, value := range config {
+		fullKey := key
+		if prefix != "" {
+			fullKey = prefix + "." + key
+		}
+
+		switch v := value.(type) {
+		case map[string]interface{}:
+			// 递归处理嵌套map
+			nested := h.flattenConfig(v, fullKey)
+			for k, val := range nested {
+				result[k] = val
+			}
+		default:
+			// 直接存储值
+			result[fullKey] = value
+		}
+	}
+
+	return result
+}
+
+// serializeConfigValue 序列化配置值
+func (h *ConfigHandler) serializeConfigValue(value interface{}) (string, string) {
+	switch v := value.(type) {
+	case bool:
+		return strconv.FormatBool(v), "bool"
+	case int:
+		return strconv.Itoa(v), "int"
+	case int64:
+		return strconv.FormatInt(v, 10), "int"
+	case float64:
+		// 检查是否是整数
+		if float64(int(v)) == v {
+			return strconv.Itoa(int(v)), "int"
+		}
+		return strconv.FormatFloat(v, 'f', -1, 64), "float"
+	case string:
+		// 字符串需要JSON编码以保持引号
+		jsonStr, _ := json.Marshal(v)
+		return string(jsonStr), "string"
+	case []interface{}, map[string]interface{}:
+		jsonBytes, _ := json.Marshal(v)
+		return string(jsonBytes), "json"
+	default:
+		jsonBytes, _ := json.Marshal(v)
+		return string(jsonBytes), "json"
+	}
+}
+
+// extractCategory 从配置键提取分类
+func (h *ConfigHandler) extractCategory(key string) string {
+	parts := strings.Split(key, ".")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return "general"
 }

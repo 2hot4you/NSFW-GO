@@ -49,7 +49,11 @@ async function loadConfig() {
             originalConfig = JSON.parse(JSON.stringify(result.data));
             
             populateForm(currentConfig);
-            showNotification('配置加载成功', 'success');
+            
+            // 显示配置来源
+            const source = result.source || 'unknown';
+            const sourceText = source === 'database' ? '数据库' : '配置文件';
+            showNotification(`配置加载成功（来源：${sourceText}）`, 'success');
         } else {
             showNotification('加载配置失败: ' + result.message, 'error');
         }
@@ -70,9 +74,9 @@ async function saveConfig() {
         return;
     }
     
-    // 显示确认弹框
-    const confirmRestart = confirm('⚠️ 保存配置后将自动重启服务器以应用新配置。\n\n是否确定要继续？');
-    if (!confirmRestart) {
+    // 显示确认弹框（配置保存到数据库，不需要重启）
+    const confirmSave = confirm('⚠️ 配置将保存到数据库中。\n\n下次启动时会自动从数据库加载配置。\n\n是否确定要继续？');
+    if (!confirmSave) {
         return;
     }
     
@@ -92,13 +96,14 @@ async function saveConfig() {
         
         if (result.success) {
             currentConfig = config;
-            showNotification('配置保存成功，正在重启服务器...', 'success');
+            const backupInfo = result.backup ? `（已创建备份：${result.backup}）` : '';
+            showNotification(`配置已成功保存到数据库 ${backupInfo}`, 'success');
             loadBackups(); // 刷新备份列表
             
-            // 延迟重启服务器
-            setTimeout(() => {
-                restartServer();
-            }, 1000);
+            // 不再自动重启服务器
+            // setTimeout(() => {
+            //     restartServer();
+            // }, 1000);
         } else {
             if (result.errors) {
                 showNotification('配置验证失败:\n' + result.errors.join('\n'), 'error');
@@ -120,6 +125,17 @@ async function validateConfig() {
     try {
         const config = collectFormData();
         
+        // 自动修复常见问题
+        if (!config.security.jwt_secret || config.security.jwt_secret === '' || 
+            config.security.jwt_secret === 'your-secret-key-change-it' || 
+            config.security.jwt_secret === 'default-jwt-secret') {
+            // 自动生成安全的JWT密钥
+            const newJwtSecret = generateSecureKey();
+            config.security.jwt_secret = newJwtSecret;
+            setFieldValue('security-jwt-secret', newJwtSecret);
+            showNotification('🔑 已自动生成安全的JWT密钥', 'info');
+        }
+        
         const response = await fetch('/api/v1/config/validate', {
             method: 'POST',
             headers: {
@@ -133,12 +149,27 @@ async function validateConfig() {
         if (result.success) {
             showNotification('✅ 配置验证通过！所有设置正确。', 'success');
         } else {
-            showNotification('❌ 配置验证失败:\n' + result.errors.join('\n'), 'error');
+            if (result.errors && Array.isArray(result.errors)) {
+                showNotification('❌ 配置验证失败:\n' + result.errors.join('\n'), 'error');
+            } else {
+                showNotification('❌ 配置验证失败: ' + (result.message || '未知错误'), 'error');
+            }
         }
     } catch (error) {
         showNotification('验证配置时发生错误: ' + error.message, 'error');
     }
     setLoading(false);
+}
+
+// 生成安全的密钥
+function generateSecureKey() {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
+    let result = 'nsfw-go-';
+    for (let i = 0; i < 32; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    result += '-' + Date.now();
+    return result;
 }
 
 // 静默验证配置（不显示通知）
@@ -162,8 +193,76 @@ async function validateConfigSilently() {
     }
 }
 
+// 确保配置结构完整
+function ensureConfigStructure(config) {
+    // 确保所有必需的顶级字段存在
+    config = config || {};
+    config.server = config.server || {};
+    config.database = config.database || {};
+    config.redis = config.redis || {};
+    config.bot = config.bot || {};
+    config.crawler = config.crawler || {};
+    config.media = config.media || {};
+    config.security = config.security || {};
+    config.log = config.log || {};
+    
+    // 确保通知配置存在（可能在数据库中没有）
+    config.notifications = config.notifications || {
+        telegram: {
+            enabled: false,
+            chat_id: ''
+        },
+        email: {
+            enabled: false,
+            smtp_host: '',
+            smtp_port: 587,
+            from: '',
+            username: '',
+            password: '',
+            recipients: []
+        }
+    };
+    
+    // 确保高级配置存在
+    config.advanced = config.advanced || {
+        enable_debug: false,
+        enable_profiling: false,
+        cache_ttl: 3600,
+        max_upload_size: 100,
+        enable_metrics: false
+    };
+    
+    // 确保种子下载配置存在
+    config.torrent = config.torrent || {
+        jackett: {
+            host: '',
+            api_key: '',
+            timeout: '30s',
+            retry_count: 3
+        },
+        qbittorrent: {
+            host: '',
+            username: 'admin',
+            password: '',
+            timeout: '30s',
+            retry_count: 3,
+            download_dir: '/downloads'
+        },
+        search: {
+            max_results: 20,
+            min_seeders: 1,
+            sort_by_size: true
+        }
+    };
+    
+    return config;
+}
+
 // 填充表单数据
 function populateForm(config) {
+    // 确保配置结构完整
+    config = ensureConfigStructure(config);
+    
     // 服务器配置
     setFieldValue('server-host', config.server.host);
     setFieldValue('server-port', config.server.port);
@@ -222,31 +321,64 @@ function populateForm(config) {
     populateArrayField('security-allowed-ips', config.security.allowed_ips || [], 'addAllowedIP');
     setFieldValue('security-enable-auth', config.security.enable_auth);
     
-    // 通知配置
-    setFieldValue('notification-telegram-enabled', config.notifications.telegram.enabled);
-    setFieldValue('notification-telegram-chat-id', config.notifications.telegram.chat_id);
-    setFieldValue('notification-email-enabled', config.notifications.email.enabled);
-    setFieldValue('notification-email-smtp-host', config.notifications.email.smtp_host);
-    setFieldValue('notification-email-smtp-port', config.notifications.email.smtp_port);
-    setFieldValue('notification-email-username', config.notifications.email.username);
-    setFieldValue('notification-email-password', config.notifications.email.password);
-    setFieldValue('notification-email-from', config.notifications.email.from);
-    populateArrayField('notification-email-to', config.notifications.email.to || [], 'addEmailTo');
+    // 通知配置（使用安全访问）
+    if (config.notifications && config.notifications.telegram) {
+        setFieldValue('notification-telegram-enabled', config.notifications.telegram.enabled);
+        setFieldValue('notification-telegram-chat-id', config.notifications.telegram.chat_id);
+    } else {
+        setFieldValue('notification-telegram-enabled', false);
+        setFieldValue('notification-telegram-chat-id', '');
+    }
     
-    // 日志配置
-    setFieldValue('log-level', config.log.level);
-    setFieldValue('log-format', config.log.format);
-    setFieldValue('log-output', config.log.output);
-    setFieldValue('log-filename', config.log.filename);
-    setFieldValue('log-max-size', config.log.max_size);
-    setFieldValue('log-max-backups', config.log.max_backups);
-    setFieldValue('log-max-age', config.log.max_age);
-    setFieldValue('log-compress', config.log.compress);
+    if (config.notifications && config.notifications.email) {
+        setFieldValue('notification-email-enabled', config.notifications.email.enabled);
+        setFieldValue('notification-email-smtp-host', config.notifications.email.smtp_host);
+        setFieldValue('notification-email-smtp-port', config.notifications.email.smtp_port);
+        setFieldValue('notification-email-username', config.notifications.email.username);
+        setFieldValue('notification-email-password', config.notifications.email.password);
+        setFieldValue('notification-email-from', config.notifications.email.from);
+        populateArrayField('notification-email-to', config.notifications.email.to || [], 'addEmailTo');
+    } else {
+        setFieldValue('notification-email-enabled', false);
+        setFieldValue('notification-email-smtp-host', '');
+        setFieldValue('notification-email-smtp-port', 587);
+        setFieldValue('notification-email-username', '');
+        setFieldValue('notification-email-password', '');
+        setFieldValue('notification-email-from', '');
+        populateArrayField('notification-email-to', [], 'addEmailTo');
+    }
     
-    // 开发环境配置
-    setFieldValue('dev-enable-debug-routes', config.dev.enable_debug_routes);
-    setFieldValue('dev-enable-profiling', config.dev.enable_profiling);
-    setFieldValue('dev-auto-reload', config.dev.auto_reload);
+    // 日志配置（使用安全访问）
+    if (config.log) {
+        setFieldValue('log-level', config.log.level);
+        setFieldValue('log-format', config.log.format);
+        setFieldValue('log-output', config.log.output);
+        setFieldValue('log-filename', config.log.filename);
+        setFieldValue('log-max-size', config.log.max_size);
+        setFieldValue('log-max-backups', config.log.max_backups);
+        setFieldValue('log-max-age', config.log.max_age);
+        setFieldValue('log-compress', config.log.compress);
+    } else {
+        setFieldValue('log-level', 'info');
+        setFieldValue('log-format', 'json');
+        setFieldValue('log-output', 'stdout');
+        setFieldValue('log-filename', 'nsfw-go.log');
+        setFieldValue('log-max-size', 100);
+        setFieldValue('log-max-backups', 3);
+        setFieldValue('log-max-age', 30);
+        setFieldValue('log-compress', false);
+    }
+    
+    // 开发环境配置（使用安全访问）
+    if (config.dev) {
+        setFieldValue('dev-enable-debug-routes', config.dev.enable_debug_routes);
+        setFieldValue('dev-enable-profiling', config.dev.enable_profiling);
+        setFieldValue('dev-auto-reload', config.dev.auto_reload);
+    } else {
+        setFieldValue('dev-enable-debug-routes', false);
+        setFieldValue('dev-enable-profiling', false);
+        setFieldValue('dev-auto-reload', false);
+    }
     
     // 种子下载配置
     if (config.torrent) {
@@ -277,8 +409,8 @@ function collectFormData() {
             mode: getFieldValue('server-mode'),
             read_timeout: getFieldValue('server-read-timeout'),
             write_timeout: getFieldValue('server-write-timeout'),
-            enable_cors: getFieldValue('server-enable-cors'),
-            enable_swagger: getFieldValue('server-enable-swagger')
+            enable_cors: !!getFieldValue('server-enable-cors'),
+            enable_swagger: !!getFieldValue('server-enable-swagger')
         },
         database: {
             host: getFieldValue('database-host'),
@@ -300,14 +432,14 @@ function collectFormData() {
             min_idle_conns: parseInt(getFieldValue('redis-min-idle-conns')) || 5
         },
         bot: {
-            enabled: getFieldValue('telegram-enabled'),
+            enabled: !!getFieldValue('telegram-enabled'),
             token: getFieldValue('telegram-token'),
             webhook_url: getFieldValue('telegram-webhook-url'),
             admin_ids: collectArrayField('telegram-admin-ids').map(id => parseInt(id)).filter(id => !isNaN(id))
         },
         crawler: {
             user_agents: collectArrayField('crawler-user-agents'),
-            proxy_enabled: getFieldValue('crawler-proxy-enabled'),
+            proxy_enabled: !!getFieldValue('crawler-proxy-enabled'),
             proxy_list: collectArrayField('crawler-proxy-list'),
             request_delay: getFieldValue('crawler-request-delay'),
             retry_count: parseInt(getFieldValue('crawler-retry-count')) || 3,
@@ -327,15 +459,15 @@ function collectFormData() {
             password_salt: getFieldValue('security-password-salt'),
             rate_limit_rps: parseInt(getFieldValue('security-rate-limit-rps')) || 100,
             allowed_ips: collectArrayField('security-allowed-ips'),
-            enable_auth: getFieldValue('security-enable-auth')
+            enable_auth: !!getFieldValue('security-enable-auth')
         },
         notifications: {
             telegram: {
-                enabled: getFieldValue('notification-telegram-enabled'),
+                enabled: !!getFieldValue('notification-telegram-enabled'),
                 chat_id: getFieldValue('notification-telegram-chat-id')
             },
             email: {
-                enabled: getFieldValue('notification-email-enabled'),
+                enabled: !!getFieldValue('notification-email-enabled'),
                 smtp_host: getFieldValue('notification-email-smtp-host'),
                 smtp_port: parseInt(getFieldValue('notification-email-smtp-port')) || 587,
                 username: getFieldValue('notification-email-username'),
@@ -352,12 +484,12 @@ function collectFormData() {
             max_size: parseInt(getFieldValue('log-max-size')) || 100,
             max_backups: parseInt(getFieldValue('log-max-backups')) || 7,
             max_age: parseInt(getFieldValue('log-max-age')) || 30,
-            compress: getFieldValue('log-compress')
+            compress: !!getFieldValue('log-compress')
         },
         dev: {
-            enable_debug_routes: getFieldValue('dev-enable-debug-routes'),
-            enable_profiling: getFieldValue('dev-enable-profiling'),
-            auto_reload: getFieldValue('dev-auto-reload')
+            enable_debug_routes: !!getFieldValue('dev-enable-debug-routes'),
+            enable_profiling: !!getFieldValue('dev-enable-profiling'),
+            auto_reload: !!getFieldValue('dev-auto-reload')
         },
         sites: {
             javdb: {
@@ -403,7 +535,7 @@ function collectFormData() {
             search: {
                 max_results: parseInt(getFieldValue('torrent-search-max-results')) || 20,
                 min_seeders: parseInt(getFieldValue('torrent-search-min-seeders')) || 1,
-                sort_by_size: getFieldValue('torrent-search-sort-by-size')
+                sort_by_size: !!getFieldValue('torrent-search-sort-by-size')
             }
         }
     };
@@ -429,7 +561,7 @@ function getFieldValue(fieldId) {
     if (!field) return '';
     
     if (field.type === 'checkbox') {
-        return field.checked;
+        return field.checked; // 返回布尔值
     }
     return field.value;
 }
@@ -719,7 +851,13 @@ function populateBackupList(backups) {
         
         const nameSpan = document.createElement('span');
         nameSpan.className = 'backup-name';
-        nameSpan.textContent = backup;
+        
+        // 兼容两种格式：字符串（文件备份）和对象（数据库备份）
+        if (typeof backup === 'string') {
+            nameSpan.textContent = backup;
+        } else {
+            nameSpan.textContent = backup.name || backup.Name || `备份 #${backup.id || backup.ID}`;
+        }
         
         const restoreBtn = document.createElement('button');
         restoreBtn.className = 'restore-btn';
@@ -733,13 +871,25 @@ function populateBackupList(backups) {
 }
 
 // 恢复备份
-async function restoreBackup(backupName) {
+async function restoreBackup(backupInfo) {
+    // 兼容字符串和对象格式
+    let backupId, backupName;
+    if (typeof backupInfo === 'string') {
+        // 文件备份格式
+        backupId = backupInfo;
+        backupName = backupInfo;
+    } else {
+        // 数据库备份格式
+        backupId = backupInfo.id || backupInfo.ID;
+        backupName = backupInfo.name || backupInfo.Name || `备份 #${backupId}`;
+    }
+    
     if (!confirm(`确定要恢复备份 "${backupName}" 吗？这将覆盖当前配置。`)) {
         return;
     }
     
     try {
-        const response = await fetch(`/api/v1/config/restore/${backupName}`, {
+        const response = await fetch(`/api/v1/config/restore/${backupId}`, {
             method: 'POST'
         });
         

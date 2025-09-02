@@ -491,9 +491,16 @@ func (s *ConfigService) TestJackettConnection(config model.JackettConfig) *model
 		}
 	}
 
-	// 测试Jackett API连接
-	client := &http.Client{Timeout: 10 * time.Second}
-	testURL := fmt.Sprintf("%s/api/v2.0/indexers?apikey=%s", config.Host, config.APIKey)
+	// 测试Jackett API连接 - 使用搜索API进行测试（更可靠）
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse // 不自动跟随重定向
+		},
+	}
+	
+	// 使用搜索API端点进行测试，搜索一个简单的关键词
+	testURL := fmt.Sprintf("%s/api/v2.0/indexers/all/results?apikey=%s&Query=test", config.Host, config.APIKey)
 
 	resp, err := client.Get(testURL)
 	if err != nil {
@@ -505,7 +512,16 @@ func (s *ConfigService) TestJackettConnection(config model.JackettConfig) *model
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	// 200 OK 或 302 重定向都表示API密钥有效
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusFound {
+		// 如果是401或403，说明API密钥无效
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return &model.ConnectionTestResult{
+				Success: false,
+				Message: "Jackett API密钥无效，请检查密钥是否正确",
+				Latency: time.Since(start).Milliseconds(),
+			}
+		}
 		return &model.ConnectionTestResult{
 			Success: false,
 			Message: fmt.Sprintf("Jackett API响应错误: HTTP %d", resp.StatusCode),

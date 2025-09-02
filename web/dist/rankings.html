@@ -3,517 +3,549 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JAV排行榜 - NSFW-Go</title>
+    <title>🏆 影片排行榜 - NSFW-Go</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="static/css/design-system.css">
+    <link rel="stylesheet" href="static/css/components.css">
     <style>
-        .gradient-bg {
-            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
-            min-height: 100vh;
+        /* 页面特定样式 */
+        .rankings-container {
+            min-height: calc(100vh - 64px);
+            padding: 2rem 1rem;
         }
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        
+        .rank-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 1.5rem;
         }
-        .hover-scale {
-            transition: transform 0.3s ease;
+        
+        @media (max-width: 640px) {
+            .rank-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
         }
-        .hover-scale:hover {
-            transform: scale(1.05);
+        
+        @media (max-width: 480px) {
+            .rank-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
         }
+        
         .rank-badge {
             position: absolute;
-            top: -8px;
-            left: -8px;
-            width: 32px;
-            height: 32px;
+            top: 8px;
+            left: 8px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
             color: white;
-            font-size: 12px;
+            font-size: 16px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 20;
         }
+        
         .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA500); }
         .rank-2 { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); }
         .rank-3 { background: linear-gradient(135deg, #CD7F32, #B87333); }
-        .rank-other { background: linear-gradient(135deg, #6B7280, #4B5563); }
+        .rank-other { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); }
+        
+        .rank-type-tab {
+            transition: all 0.3s;
+        }
+        
+        .rank-type-tab.active {
+            background: var(--primary-gradient);
+            transform: scale(1.05);
+        }
     </style>
 </head>
-<body class="gradient-bg text-white">
-    <!-- 导航栏 -->
-    <nav class="glass-effect sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-4">
-                    <h1 class="text-2xl font-bold">
-                        <i class="fas fa-video mr-2 text-blue-400"></i>
-                        NSFW-Go
-                    </h1>
-                    <span class="text-sm text-gray-400 hidden sm:block">智能影视库管理系统</span>
-                </div>
-                
-                <div class="flex items-center space-x-4">
-                    <!-- 首页链接 -->
-                    <a href="/" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                        <i class="fas fa-home mr-2"></i><span class="hidden sm:inline">首页</span>
-                    </a>
-                    
-                    <!-- 本地影视库 -->
-                    <a href="/local-movies.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                        <i class="fas fa-folder-open mr-2"></i><span class="hidden sm:inline">本地影视库</span>
-                    </a>
-                    
-                    <!-- 搜索 -->
-                    <a href="/search.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                        <i class="fas fa-search mr-2"></i><span class="hidden sm:inline">搜索</span>
-                    </a>
-                    
-                    <!-- 下载管理 -->
-                    <a href="/downloads.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                        <i class="fas fa-download mr-2"></i><span class="hidden sm:inline">下载</span>
-                    </a>
-                    
-                    <!-- 设置按钮 -->
-                    <a href="/config.html" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                        <i class="fas fa-cogs mr-2"></i><span class="hidden sm:inline">设置</span>
-                    </a>
-                </div>
-                
-                <div class="flex items-center space-x-4" id="nav-right-privacy-anchor">
-                    <!-- 隐私模式按钮将在这里插入 -->
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- 页面标题 -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-white mb-2">
-                <i class="fas fa-trophy mr-3 text-yellow-500"></i>JAV影片排行榜
+<body>
+    <!-- 导航栏将由modern-nav.js自动插入 -->
+    
+    <!-- 主内容区 -->
+    <main class="rankings-container max-w-7xl mx-auto">
+        <!-- 页面头部 -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold mb-4">
+                <span class="glow-text">🏆 影片排行榜</span>
             </h1>
-            <p class="text-gray-400">每日12:00自动更新，本地已存在影片会特别标注</p>
+            <p class="text-lg text-muted">JAVDb 热门影片排行，每日更新最受欢迎的作品 🔥</p>
         </div>
-
-        <!-- 控制按钮 -->
-        <div class="mb-6 flex space-x-4">
-            <button id="refresh-btn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg">
-                <i class="fas fa-sync-alt mr-2"></i>刷新数据
-            </button>
-            <button id="crawl-btn" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg">
-                <i class="fas fa-spider mr-2"></i>手动爬取
-            </button>
-        </div>
-
-        <!-- 排行榜类型选择 -->
-        <div class="mb-6">
-            <div class="flex space-x-2">
-                <button class="ranking-tab bg-blue-600 text-white px-6 py-3 rounded-lg" data-type="daily">日榜</button>
-                <button class="ranking-tab bg-gray-600 text-gray-300 px-6 py-3 rounded-lg" data-type="weekly">周榜</button>
-                <button class="ranking-tab bg-gray-600 text-gray-300 px-6 py-3 rounded-lg" data-type="monthly">月榜</button>
-                <button class="ranking-tab bg-gray-600 text-gray-300 px-6 py-3 rounded-lg" data-type="local">本地已有</button>
+        
+        <!-- 排行榜类型切换 -->
+        <div class="glass-card p-6 mb-8">
+            <div class="flex flex-wrap gap-3 justify-center">
+                <button onclick="switchRankType('daily')" class="btn btn-primary rank-type-tab active" id="dailyTab">
+                    <i class="fas fa-calendar-day"></i>
+                    <span>📅 日榜</span>
+                </button>
+                <button onclick="switchRankType('weekly')" class="btn btn-secondary rank-type-tab" id="weeklyTab">
+                    <i class="fas fa-calendar-week"></i>
+                    <span>📆 周榜</span>
+                </button>
+                <button onclick="switchRankType('monthly')" class="btn btn-secondary rank-type-tab" id="monthlyTab">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>📊 月榜</span>
+                </button>
+                <button onclick="refreshRankings()" class="btn btn-secondary ml-auto">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>🔄 刷新</span>
+                </button>
+            </div>
+            
+            <!-- 统计信息 -->
+            <div class="mt-4 flex flex-wrap gap-4 justify-center text-sm">
+                <div class="badge badge-success">
+                    ✅ 本地已有：<span id="localCount">0</span> 部
+                </div>
+                <div class="badge badge-warning">
+                    📥 可下载：<span id="downloadableCount">0</span> 部
+                </div>
+                <div class="badge badge-primary">
+                    ⏰ 更新时间：<span id="updateTime">--</span>
+                </div>
             </div>
         </div>
-
-        <!-- 加载状态 -->
-        <div id="loading" class="text-center py-12">
-            <i class="fas fa-spinner fa-spin text-4xl text-blue-500 mb-4"></i>
-            <p class="text-gray-400">正在加载排行榜数据...</p>
+        
+        <!-- 筛选和搜索 -->
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+            <div class="flex-1">
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="🔍 搜索排行榜..." 
+                        class="input-field pl-10"
+                        onkeyup="filterRankings()"
+                    >
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"></i>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="toggleLocalOnly()" class="btn btn-secondary" id="localOnlyBtn">
+                    <i class="fas fa-home"></i>
+                    <span>只看本地</span>
+                </button>
+                <button onclick="batchDownload()" class="btn btn-primary">
+                    <i class="fas fa-download"></i>
+                    <span>批量下载</span>
+                </button>
+            </div>
         </div>
-
+        
         <!-- 排行榜内容 -->
-        <div id="rankings-container" class="hidden">
-            <div id="rankings-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div id="rankingsContainer">
+            <div class="loading-state flex-center" style="min-height: 400px;">
+                <div class="loader"></div>
+                <span class="loading-message ml-3">加载排行榜...</span>
             </div>
         </div>
-
-        <!-- 空状态 -->
-        <div id="empty-state" class="hidden text-center py-12">
-            <i class="fas fa-inbox text-4xl text-gray-500 mb-4"></i>
-            <p class="text-gray-400">暂无排行榜数据</p>
-            <button id="trigger-crawl" class="mt-4 bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg">
-                立即爬取
-            </button>
+    </main>
+    
+    <!-- 影片详情模态框 -->
+    <div id="movieDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">🎬 影片详情</h3>
+                <button onclick="closeMovieDetail()" class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="movieDetailContent">
+                <!-- 详情内容将动态插入 -->
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeMovieDetail()" class="btn btn-secondary">关闭</button>
+                <button onclick="downloadMovie()" class="btn btn-primary" id="downloadBtn">
+                    <i class="fas fa-download"></i>
+                    下载
+                </button>
+            </div>
         </div>
     </div>
-
+    
+    <!-- 返回顶部 -->
+    <button id="backToTop" onclick="scrollToTop()" class="fixed bottom-8 right-8 btn btn-primary rounded-full w-12 h-12 hidden">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+    
+    <script src="static/js/components.js"></script>
+    <script src="static/js/modern-nav.js"></script>
+    <script src="static/js/performance.js"></script>
     <script>
         let currentRankType = 'daily';
-
+        let allRankings = [];
+        let filteredRankings = [];
+        let localOnlyMode = false;
+        let selectedMovies = new Set();
+        let currentMovie = null;
+        
+        // 页面加载完成
         document.addEventListener('DOMContentLoaded', function() {
-            loadRankings(currentRankType);
-            setupEventListeners();
-        });
-
-        function setupEventListeners() {
-            // 排行榜类型切换
-            document.querySelectorAll('.ranking-tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    const rankType = this.dataset.type;
-                    switchRankType(rankType);
-                });
-            });
-
-            // 按钮事件
-            document.getElementById('refresh-btn').addEventListener('click', () => loadRankings(currentRankType));
-            document.getElementById('crawl-btn').addEventListener('click', triggerCrawl);
-            document.getElementById('trigger-crawl').addEventListener('click', triggerCrawl);
-        }
-
-        function switchRankType(rankType) {
-            currentRankType = rankType;
+            loadRankings('daily');
             
-            // 更新选项卡样式
-            document.querySelectorAll('.ranking-tab').forEach(tab => {
-                if (tab.dataset.type === rankType) {
-                    tab.className = 'ranking-tab bg-blue-600 text-white px-6 py-3 rounded-lg';
+            // 监听滚动
+            window.addEventListener('scroll', () => {
+                const backToTop = document.getElementById('backToTop');
+                if (window.scrollY > 300) {
+                    backToTop.classList.remove('hidden');
                 } else {
-                    tab.className = 'ranking-tab bg-gray-600 text-gray-300 px-6 py-3 rounded-lg';
+                    backToTop.classList.add('hidden');
                 }
             });
-
-            // 加载数据
-            if (rankType === 'local') {
-                loadLocalExists();
-            } else {
-                loadRankings(rankType);
-            }
-        }
-
-        async function loadRankings(rankType) {
-            showLoading();
+        });
+        
+        // 加载排行榜
+        async function loadRankings(type) {
+            const container = document.getElementById('rankingsContainer');
+            container.innerHTML = components.createLoadingState('🏆 加载排行榜中...');
             
             try {
-                const response = await fetch(`/api/v1/rankings?type=${rankType}&limit=50`);
-                const result = await response.json();
+                // API 返回所有排行榜数据，需要在前端过滤
+                const response = await fetch('/api/v1/rankings');
+                const data = await response.json();
                 
-                if (result.success && result.data && result.data.length > 0) {
-                    renderRankings(result.data);
+                if (data.success && data.data) {
+                    // 过滤出对应类型的排行榜
+                    allRankings = data.data.filter(item => item.rank_type === type);
+                    // 按排名排序
+                    allRankings.sort((a, b) => a.position - b.position);
+                    filteredRankings = [...allRankings];
+                    renderRankings();
+                    updateStats();
+                    
+                    // 更新时间
+                    document.getElementById('updateTime').textContent = 
+                        new Date().toLocaleTimeString('zh-CN');
                 } else {
-                    showEmptyState();
+                    throw new Error('加载失败');
                 }
             } catch (error) {
                 console.error('加载排行榜失败:', error);
-                showEmptyState();
+                container.innerHTML = components.createEmptyState(
+                    '😅 加载排行榜失败',
+                    'fa-trophy',
+                    {
+                        label: '重试',
+                        icon: 'fas fa-sync',
+                        onClick: `loadRankings('${type}')`
+                    }
+                );
             }
-        }
-
-        async function loadLocalExists() {
-            showLoading();
-            
-            try {
-                const response = await fetch('/api/v1/rankings/local?type=all&limit=100');
-                const result = await response.json();
-                
-                if (result.success && result.data && result.data.length > 0) {
-                    renderRankings(result.data);
-                } else {
-                    showEmptyState();
-                }
-            } catch (error) {
-                console.error('加载本地已存在影片失败:', error);
-                showEmptyState();
-            }
-        }
-
-        function renderRankings(rankings) {
-            const container = document.getElementById('rankings-grid');
-            
-            container.innerHTML = rankings.map((item, index) => {
-                const position = item.position || (index + 1);
-                const badgeColor = position === 1 ? 'bg-yellow-500' : 
-                                 position === 2 ? 'bg-gray-400' : 
-                                 position === 3 ? 'bg-orange-400' : 'bg-gray-600';
-                
-                return `
-                    <div class="bg-gray-800 rounded-xl overflow-hidden relative hover-scale">
-                        <div class="absolute top-2 left-2 ${badgeColor} text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold z-10">
-                            ${position}
-                        </div>
-                        
-                        <div class="w-full h-48 bg-gray-700 flex items-center justify-center">
-                            ${item.cover_url ? `
-                                <img src="${item.cover_url}" alt="${item.title}" class="w-full h-full object-cover">
-                            ` : `
-                                <i class="fas fa-film text-4xl text-gray-400"></i>
-                            `}
-                        </div>
-                        
-                        <div class="p-4">
-                            <h3 class="font-bold text-white text-sm mb-2 line-clamp-2" title="${item.title}">
-                                ${item.title}
-                            </h3>
-                            
-                            <div class="text-xs text-gray-400 space-y-1">
-                                ${item.code ? `
-                                    <div class="flex items-center justify-between">
-                                        <span class="bg-gray-700 px-2 py-1 rounded flex items-center">
-                                            <i class="fas fa-tag mr-1"></i>${item.code}
-                                        </span>
-                                        ${!item.local_exists ? `
-                                            <button onclick="downloadRankingMovie('${item.code}', '${item.title.replace(/'/g, "\\'")}', this)" 
-                                                    class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium flex items-center transition-colors duration-200">
-                                                <i class="fas fa-download mr-1"></i>下载
-                                            </button>
-                                        ` : `
-                                            <span class="bg-green-500 text-white px-2 py-1 rounded text-xs font-bold flex items-center">
-                                                <i class="fas fa-check mr-1"></i>已有
-                                            </span>
-                                        `}
-                                    </div>
-                                ` : ''}
-                                
-                                <div class="flex items-center justify-between">
-                                    <span>排名: #${position}</span>
-                                    <span>${getRankTypeText(item.rank_type || 'daily')}</span>
-                                </div>
-                                
-                                ${item.rating ? `
-                                    <div class="flex items-center">
-                                        <i class="fas fa-star mr-1 text-yellow-400"></i>
-                                        <span>${item.rating.toFixed(1)}</span>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            hideLoading();
-            document.getElementById('rankings-container').classList.remove('hidden');
-        }
-
-        async function triggerCrawl() {
-            const btn = event.target;
-            const originalText = btn.textContent;
-            
-            btn.textContent = '爬取中...';
-            btn.disabled = true;
-            
-            try {
-                const response = await fetch('/api/v1/rankings/crawl', {
-                    method: 'POST'
-                });
-                const result = await response.json();
-                
-                if (result.success) {
-                    alert('爬取任务已启动，请稍后刷新页面查看结果');
-                    setTimeout(() => loadRankings(currentRankType), 5000);
-                } else {
-                    alert('爬取失败: ' + (result.error || '未知错误'));
-                }
-            } catch (error) {
-                console.error('触发爬取失败:', error);
-                alert('触发爬取失败: ' + error.message);
-            } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
-            }
-        }
-
-        function showLoading() {
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('rankings-container').classList.add('hidden');
-            document.getElementById('empty-state').classList.add('hidden');
-        }
-
-        function hideLoading() {
-            document.getElementById('loading').classList.add('hidden');
-        }
-
-        function showEmptyState() {
-            hideLoading();
-            document.getElementById('rankings-container').classList.add('hidden');
-            document.getElementById('empty-state').classList.remove('hidden');
         }
         
-        // 下载排行榜电影
-        async function downloadRankingMovie(code, title, buttonElement) {
-            if (!code) {
-                showNotification('番号不能为空', 'error');
+        // 渲染排行榜
+        function renderRankings() {
+            const container = document.getElementById('rankingsContainer');
+            
+            if (filteredRankings.length === 0) {
+                container.innerHTML = components.createEmptyState(
+                    localOnlyMode ? '😔 本地暂无此榜单影片' : '😔 暂无排行数据',
+                    'fa-trophy'
+                );
                 return;
             }
             
-            const originalButton = buttonElement;
-            const originalContent = originalButton.innerHTML;
+            container.innerHTML = `
+                <div class="rank-grid">
+                    ${filteredRankings.map((movie, index) => createRankCard(movie, index + 1)).join('')}
+                </div>
+            `;
+        }
+        
+        // 创建排行卡片
+        function createRankCard(movie, rank) {
+            const hasLocal = movie.local_exists || false;  // 使用API返回的local_exists字段
+            const isSelected = selectedMovies.has(movie.code);
+            
+            return `
+                <div class="glass-card hover-scale relative ${isSelected ? 'ring-2 ring-primary' : ''}">
+                    <!-- 排名徽章 -->
+                    <div class="rank-badge ${rank <= 3 ? `rank-${rank}` : 'rank-other'}">
+                        ${rank <= 3 ? `🏅` : rank}
+                    </div>
+                    
+                    <!-- 选择框（只有不在本地库的才显示） -->
+                    ${!hasLocal ? `
+                        <div class="absolute top-2 right-2 z-10">
+                            <input type="checkbox" 
+                                   ${isSelected ? 'checked' : ''} 
+                                   onchange="toggleSelection('${movie.code}')"
+                                   class="w-5 h-5 rounded cursor-pointer">
+                        </div>
+                    ` : ''}
+                    
+                    <!-- 影片内容 -->
+                    <div class="cursor-pointer" onclick="viewMovieDetail('${movie.code}')">
+                        <div class="relative overflow-hidden" style="aspect-ratio: 3/4;">
+                            ${movie.cover_url ? `
+                                <img src="${movie.cover_url}" alt="${movie.title}" 
+                                     class="w-full h-full object-cover" loading="lazy">
+                            ` : `
+                                <div class="skeleton-image"></div>
+                            `}
+                            
+                            <!-- 状态标签 -->
+                            <div class="absolute bottom-2 left-2 right-2 flex justify-between items-end">
+                                ${hasLocal ? `
+                                    <span class="badge badge-success">✅ 已在库中</span>
+                                ` : `
+                                    <span class="badge badge-warning">📥 可下载</span>
+                                `}
+                                ${movie.is_hot ? `
+                                    <span class="badge badge-danger">🔥 热门</span>
+                                ` : ''}
+                                ${movie.is_new ? `
+                                    <span class="badge badge-warning">🆕 新作</span>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="p-4">
+                            <h3 class="font-semibold text-sm mb-2 line-clamp-2">
+                                ${movie.title || movie.code}
+                            </h3>
+                            <div class="space-y-1 text-xs text-muted">
+                                <p>🎬 ${movie.code}</p>
+                                ${movie.actresses ? `
+                                    <p>👤 ${movie.actresses.slice(0, 2).join(', ')}</p>
+                                ` : ''}
+                                ${movie.release_date ? `
+                                    <p>📅 ${movie.release_date}</p>
+                                ` : ''}
+                                ${movie.score ? `
+                                    <p>⭐ ${movie.score} 分</p>
+                                ` : ''}
+                            </div>
+                            
+                            <!-- 操作按钮 -->
+                            ${!hasLocal ? `
+                                <button onclick="event.stopPropagation(); downloadSingle('${movie.code}')" 
+                                        class="btn btn-primary btn-sm w-full mt-3">
+                                    <i class="fas fa-download"></i>
+                                    下载
+                                </button>
+                            ` : `
+                                <button class="btn btn-secondary btn-sm w-full mt-3" disabled>
+                                    ✅ 已在本地
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 切换排行榜类型
+        function switchRankType(type) {
+            currentRankType = type;
+            
+            // 更新标签样式
+            document.querySelectorAll('.rank-type-tab').forEach(tab => {
+                tab.classList.remove('active', 'btn-primary');
+                tab.classList.add('btn-secondary');
+            });
+            
+            const activeTab = document.getElementById(`${type}Tab`);
+            activeTab.classList.add('active', 'btn-primary');
+            activeTab.classList.remove('btn-secondary');
+            
+            // 加载对应排行榜
+            loadRankings(type);
+        }
+        
+        // 刷新排行榜
+        async function refreshRankings() {
+            components.showNotification('🔄 正在刷新排行榜...', 'info');
             
             try {
-                // 更新按钮状态
-                originalButton.disabled = true;
-                originalButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>搜索中...';
-                
-                showNotification(`正在搜索 ${code} 的种子...`, 'info');
-                
-                // 使用专门的番号搜索API（会检查本地是否存在）
-                const searchResponse = await fetch(`/api/v1/torrents/search/code?code=${encodeURIComponent(code)}`);
-                const searchData = await searchResponse.json();
-                
-                if (searchResponse.status === 409) {
-                    // 番号已存在
-                    showNotification(searchData.message, 'warning');
-                    originalButton.innerHTML = '<i class="fas fa-check mr-1"></i>已有';
-                    originalButton.className = 'bg-green-500 text-white px-2 py-1 rounded text-xs font-bold flex items-center transition-colors duration-200';
-                    originalButton.disabled = true;
-                    return;
-                }
-                
-                if (!searchResponse.ok) {
-                    throw new Error(searchData.message || '搜索种子失败');
-                }
-                
-                const results = searchData.data.results;
-                if (!results || results.length === 0) {
-                    throw new Error('未找到可用的种子');
-                }
-                
-                // 找到最大的种子
-                const largestTorrent = results.reduce((prev, current) => {
-                    return (prev.size > current.size) ? prev : current
-                });
-                
-                // 直接下载最大的种子
-                await downloadTorrent(largestTorrent.magnetUri || largestTorrent.link, code, largestTorrent.title, largestTorrent.size, largestTorrent.tracker, 'no-close', originalButton);
-                
-                // 更新按钮为已下载状态
-                originalButton.innerHTML = '<i class="fas fa-check mr-1"></i>已添加';
-                originalButton.className = 'bg-green-500 text-white px-2 py-1 rounded text-xs font-bold flex items-center transition-colors duration-200';
-                originalButton.disabled = true;
-                
-            } catch (error) {
-                console.error('搜索种子失败:', error);
-                showNotification(`搜索失败: ${error.message}`, 'error');
-                
-                // 恢复按钮状态
-                originalButton.disabled = false;
-                originalButton.innerHTML = originalContent;
-            }
-        }
-        
-        // 获取排行榜类型文本
-        function getRankTypeText(rankType) {
-            switch (rankType) {
-                case 'daily': return '日榜';
-                case 'weekly': return '周榜';
-                case 'monthly': return '月榜';
-                default: return '未知';
-            }
-        }
-
-        // 显示种子选择界面 (不再使用，但保留以防万一)
-        function showTorrentSelection(code, title, torrents, originalButton) {
-            // 此函数已不再直接使用，因为需求是直接下载最大的文件
-            console.log('showTorrentSelection called but not used for direct download:', { code, title, torrents });
-            return; // 直接返回，不显示弹框
-        }
-        
-        // 下载选定的种子
-        async function downloadTorrent(downloadUri, code, title, size, tracker, shouldClose, originalButton) {
-            try {
-                showNotification('正在添加下载任务...', 'info');
-                
-                const response = await fetch('/api/v1/torrents/download', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        magnet_uri: downloadUri.startsWith('magnet:') ? downloadUri : '',
-                        link: !downloadUri.startsWith('magnet:') ? downloadUri : '',
-                        code: code,
-                        title: title,
-                        size: size,
-                        tracker: tracker
-                    })
-                });
-                
+                const response = await fetch('/api/v1/rankings/crawl', { method: 'POST' });
                 const data = await response.json();
                 
-                if (!response.ok) {
-                    throw new Error(data.message || '添加下载任务失败');
+                if (data.code === 'SUCCESS') {
+                    components.showNotification('✅ 排行榜已更新！', 'success');
+                    loadRankings(currentRankType);
+                } else {
+                    components.showNotification('😅 刷新失败', 'error');
                 }
-                
-                showNotification('✅ 已添加到下载队列！', 'success');
-                
-                // 关闭弹窗
-                if (shouldClose === 'close') {
-                    // 查找并关闭弹窗
-                    const modals = document.querySelectorAll('div[style*="position: fixed"]');
-                    modals.forEach(modal => {
-                        if (modal.style.position === 'fixed' && modal.style.zIndex === '99999') {
-                            modal.remove();
-                        }
-                    });
-                }
-                
-                // 可选：跳转到下载管理页面
-                setTimeout(() => {
-                    if (confirm('下载任务已添加，是否前往下载管理页面？')) {
-                        window.location.href = '/downloads.html';
-                    }
-                }, 1000);
-                
             } catch (error) {
-                console.error('下载失败:', error);
-                showNotification(`下载失败: ${error.message}`, 'error');
-            } finally {
-                // 恢复按钮状态
-                originalButton.disabled = false;
-                originalButton.innerHTML = originalContent;
+                console.error('刷新失败:', error);
+                components.showNotification('😅 刷新失败', 'error');
             }
         }
         
-        // 显示通知
-        function showNotification(message, type = 'info') {
-            // 移除现有通知
-            const existingNotification = document.querySelector('.notification');
-            if (existingNotification) {
-                existingNotification.remove();
+        // 筛选排行榜
+        function filterRankings() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            filteredRankings = allRankings.filter(movie => {
+                if (localOnlyMode && !movie.has_local) return false;
+                
+                const title = (movie.title || '').toLowerCase();
+                const code = (movie.code || '').toLowerCase();
+                const actresses = (movie.actresses || []).join(' ').toLowerCase();
+                
+                return title.includes(searchTerm) || 
+                       code.includes(searchTerm) || 
+                       actresses.includes(searchTerm);
+            });
+            
+            renderRankings();
+        }
+        
+        // 切换只看本地
+        function toggleLocalOnly() {
+            localOnlyMode = !localOnlyMode;
+            const btn = document.getElementById('localOnlyBtn');
+            
+            if (localOnlyMode) {
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-primary');
+            } else {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
             }
             
-            const notification = document.createElement('div');
-            notification.className = `notification fixed top-4 right-4 z-50 px-6 py-3 rounded-lg text-white font-medium transition-all duration-300 transform`;
-            
-            let bgColor = 'bg-blue-600';
-            let icon = 'fas fa-info-circle';
-            
-            switch (type) {
-                case 'success':
-                    bgColor = 'bg-green-600';
-                    icon = 'fas fa-check-circle';
-                    break;
-                case 'error':
-                    bgColor = 'bg-red-600';
-                    icon = 'fas fa-exclamation-circle';
-                    break;
-                case 'warning':
-                    bgColor = 'bg-yellow-600';
-                    icon = 'fas fa-exclamation-triangle';
-                    break;
+            filterRankings();
+        }
+        
+        // 切换选择
+        function toggleSelection(code) {
+            if (selectedMovies.has(code)) {
+                selectedMovies.delete(code);
+            } else {
+                selectedMovies.add(code);
+            }
+            renderRankings();
+        }
+        
+        // 批量下载
+        function batchDownload() {
+            if (selectedMovies.size === 0) {
+                components.showNotification('😅 请先选择要下载的影片', 'warning');
+                return;
             }
             
-            notification.className += ` ${bgColor}`;
-            notification.innerHTML = `
-                <div class="flex items-center">
-                    <i class="${icon} mr-2"></i>
-                    ${message}
+            components.showNotification(`🚀 开始批量下载 ${selectedMovies.size} 部影片...`, 'info');
+            
+            // 跳转到下载页面
+            const codes = Array.from(selectedMovies).join(',');
+            window.location.href = `/downloads.html?batch=${codes}`;
+        }
+        
+        // 单个下载
+        function downloadSingle(code) {
+            window.location.href = `/downloads.html?search=${code}`;
+        }
+        
+        // 查看影片详情
+        async function viewMovieDetail(code) {
+            currentMovie = allRankings.find(m => m.code === code);
+            if (!currentMovie) return;
+            
+            const modal = document.getElementById('movieDetailModal');
+            const content = document.getElementById('movieDetailContent');
+            
+            content.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-6">
+                    <div class="md:w-1/3">
+                        ${currentMovie.cover_url ? `
+                            <img src="${currentMovie.cover_url}" alt="${currentMovie.title}" 
+                                 class="w-full rounded-lg">
+                        ` : `
+                            <div class="skeleton-image rounded-lg"></div>
+                        `}
+                    </div>
+                    <div class="md:w-2/3 space-y-4">
+                        <h2 class="text-2xl font-bold">${currentMovie.title || currentMovie.code}</h2>
+                        <div class="space-y-2 text-sm">
+                            <p><strong>🎬 番号：</strong>${currentMovie.code}</p>
+                            ${currentMovie.actresses ? `
+                                <p><strong>👤 女优：</strong>${currentMovie.actresses.join(', ')}</p>
+                            ` : ''}
+                            ${currentMovie.release_date ? `
+                                <p><strong>📅 发行日期：</strong>${currentMovie.release_date}</p>
+                            ` : ''}
+                            ${currentMovie.studio ? `
+                                <p><strong>🏢 制作商：</strong>${currentMovie.studio}</p>
+                            ` : ''}
+                            ${currentMovie.duration ? `
+                                <p><strong>⏱️ 时长：</strong>${currentMovie.duration} 分钟</p>
+                            ` : ''}
+                            ${currentMovie.score ? `
+                                <p><strong>⭐ 评分：</strong>${currentMovie.score}</p>
+                            ` : ''}
+                        </div>
+                        ${currentMovie.description ? `
+                            <div>
+                                <h3 class="font-semibold mb-2">📝 简介</h3>
+                                <p class="text-sm text-muted">${currentMovie.description}</p>
+                            </div>
+                        ` : ''}
+                        ${currentMovie.tags ? `
+                            <div>
+                                <h3 class="font-semibold mb-2">🏷️ 标签</h3>
+                                <div class="flex flex-wrap gap-2">
+                                    ${currentMovie.tags.map(tag => `
+                                        <span class="badge badge-primary">${tag}</span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
                 </div>
             `;
             
-            document.body.appendChild(notification);
+            // 更新下载按钮
+            const downloadBtn = document.getElementById('downloadBtn');
+            if (currentMovie.has_local) {
+                downloadBtn.disabled = true;
+                downloadBtn.innerHTML = '✅ 已在本地';
+            } else {
+                downloadBtn.disabled = false;
+                downloadBtn.innerHTML = '<i class="fas fa-download"></i> 下载';
+            }
             
-            // 自动移除
-            setTimeout(() => {
-                notification.style.transform = 'translateX(100%)';
-                setTimeout(() => notification.remove(), 300);
-            }, 4000);
+            components.openModal('movieDetailModal');
+        }
+        
+        // 关闭详情
+        function closeMovieDetail() {
+            components.closeModal();
+            currentMovie = null;
+        }
+        
+        // 下载影片
+        function downloadMovie() {
+            if (currentMovie && !currentMovie.has_local) {
+                downloadSingle(currentMovie.code);
+            }
+        }
+        
+        // 更新统计
+        function updateStats() {
+            const localCount = allRankings.filter(m => m.has_local).length;
+            const downloadableCount = allRankings.filter(m => !m.has_local).length;
+            
+            document.getElementById('localCount').textContent = localCount;
+            document.getElementById('downloadableCount').textContent = downloadableCount;
+        }
+        
+        // 返回顶部
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     </script>
-
-    <!-- 隐私模式脚本 -->
-    <script src="/static/js/privacy-mode.js"></script>
+    
+    <!-- 引入外部rankings.js -->
+    <script src="static/js/rankings.js"></script>
 </body>
-</html> 
+</html>
