@@ -201,6 +201,8 @@ function ensureConfigStructure(config) {
     config.database = config.database || {};
     config.redis = config.redis || {};
     config.bot = config.bot || {};
+    // 确保 admin_ids 存在并且是数组
+    config.bot.admin_ids = config.bot.admin_ids || [];
     config.crawler = config.crawler || {};
     config.media = config.media || {};
     config.security = config.security || {};
@@ -295,7 +297,11 @@ function populateForm(config) {
     setFieldValue('telegram-enabled', config.bot.enabled);
     setFieldValue('telegram-token', config.bot.token);
     setFieldValue('telegram-webhook-url', config.bot.webhook_url);
-    populateArrayField('telegram-admin-ids', config.bot.admin_ids || [], 'addAdminId');
+    // Telegram管理员ID列表 - 现在使用textarea
+    const adminIdsTextarea = document.getElementById('telegram-admin-ids');
+    if (adminIdsTextarea && config.bot.admin_ids && config.bot.admin_ids.length > 0) {
+        adminIdsTextarea.value = config.bot.admin_ids.join('\n');
+    }
     
     // 爬虫配置
     populateArrayField('crawler-user-agents', config.crawler.user_agents || [], 'addUserAgent');
@@ -435,7 +441,16 @@ function collectFormData() {
             enabled: !!getFieldValue('telegram-enabled'),
             token: getFieldValue('telegram-token'),
             webhook_url: getFieldValue('telegram-webhook-url'),
-            admin_ids: collectArrayField('telegram-admin-ids').map(id => parseInt(id)).filter(id => !isNaN(id))
+            admin_ids: (() => {
+                const textarea = document.getElementById('telegram-admin-ids');
+                if (!textarea) return [];
+                return textarea.value
+                    .split('\n')
+                    .map(id => id.trim())
+                    .filter(id => id)
+                    .map(id => parseInt(id))
+                    .filter(id => !isNaN(id));
+            })()
         },
         crawler: {
             user_agents: collectArrayField('crawler-user-agents'),
@@ -620,9 +635,7 @@ function addArrayItem(container, value = '', addFunctionName) {
 }
 
 // 数组字段添加函数
-function addAdminId() {
-    addArrayItem(document.getElementById('telegram-admin-ids'));
-}
+// addAdminId 函数已移除 - 现在使用textarea输入管理员ID
 
 function addUserAgent() {
     addArrayItem(document.getElementById('crawler-user-agents'));
@@ -715,8 +728,56 @@ async function testTelegramConnection() {
         enabled: getFieldValue('telegram-enabled'),
         token: token,
         webhook_url: getFieldValue('telegram-webhook-url'),
-        admin_ids: collectArrayField('telegram-admin-ids').map(id => parseInt(id)).filter(id => !isNaN(id))
+        admin_ids: (() => {
+            const textarea = document.getElementById('telegram-admin-ids');
+            if (!textarea) return [];
+            return textarea.value
+                .split('\n')
+                .map(id => id.trim())
+                .filter(id => id)
+                .map(id => parseInt(id))
+                .filter(id => !isNaN(id));
+        })()
     }, 'telegram-test-result');
+}
+
+// 测试Telegram通知发送
+async function testTelegramNotification() {
+    const resultDiv = document.getElementById('telegram-test-result');
+    resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在发送测试通知...';
+    resultDiv.className = 'test-result mt-4';
+    
+    try {
+        const chatId = getFieldValue('notification-telegram-chat-id');
+        if (!chatId) {
+            throw new Error('请先填写通知聊天ID');
+        }
+        
+        const response = await fetch('/api/v1/config/test-notification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                type: 'telegram',
+                chat_id: chatId,
+                message: '🎉 这是一条测试通知！\n\n如果您收到了这条消息，说明Telegram通知配置成功。\n\n时间: ' + new Date().toLocaleString('zh-CN')
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            resultDiv.innerHTML = '<i class="fas fa-check-circle text-green-400"></i> 测试通知发送成功！请检查您的Telegram。';
+            resultDiv.classList.add('success');
+        } else {
+            resultDiv.innerHTML = '<i class="fas fa-times-circle text-red-400"></i> 发送失败: ' + (result.message || '未知错误');
+            resultDiv.classList.add('error');
+        }
+    } catch (error) {
+        resultDiv.innerHTML = '<i class="fas fa-times-circle text-red-400"></i> ' + error.message;
+        resultDiv.classList.add('error');
+    }
 }
 
 async function testEmailConnection() {

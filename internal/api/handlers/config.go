@@ -19,13 +19,15 @@ import (
 type ConfigHandler struct {
 	configService      *service.ConfigService
 	configStoreService *service.ConfigStoreService
+	telegramService    *service.TelegramService
 }
 
 // NewConfigHandler 创建配置处理器
-func NewConfigHandler(configService *service.ConfigService) *ConfigHandler {
+func NewConfigHandler(configService *service.ConfigService, telegramService *service.TelegramService) *ConfigHandler {
 	return &ConfigHandler{
 		configService:      configService,
 		configStoreService: service.NewConfigStoreService(),
+		telegramService:    telegramService,
 	}
 }
 
@@ -482,4 +484,62 @@ func (h *ConfigHandler) extractCategory(key string) string {
 		return parts[0]
 	}
 	return "general"
+}
+
+// TestNotification 测试通知发送
+func (h *ConfigHandler) TestNotification(c *gin.Context) {
+	var req struct {
+		Type    string `json:"type"`
+		ChatID  string `json:"chat_id"`
+		Message string `json:"message"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "无效的请求参数",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// 只支持Telegram通知测试
+	if req.Type != "telegram" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "不支持的通知类型",
+		})
+		return
+	}
+
+	// 检查Telegram服务是否初始化
+	if h.telegramService == nil {
+		// 尝试重新初始化
+		config, err := h.configService.GetConfig()
+		if err != nil || config == nil || !config.Bot.Enabled {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "Telegram Bot未启用或配置不正确",
+			})
+			return
+		}
+		// 使用空的默认聊天ID，测试时会指定
+		h.telegramService = service.NewTelegramService(config.Bot.Token, "", config.Bot.Enabled)
+	}
+
+	// 发送测试通知
+	err := h.telegramService.SendTestNotification(req.ChatID, req.Message)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "发送通知失败",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "测试通知已发送",
+	})
 }

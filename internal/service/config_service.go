@@ -600,26 +600,21 @@ func (s *ConfigService) TestTelegramNotification(telegramConfig model.TelegramNo
 		}
 	}
 
-	// 简单验证Token和ChatID格式
-	if len(botToken) < 10 {
+	// 创建Telegram服务并发送测试消息
+	telegramService := NewTelegramService(botToken, telegramConfig.ChatID, true)
+	err := telegramService.TestConnection()
+	
+	if err != nil {
 		return &model.ConnectionTestResult{
 			Success: false,
-			Message: "Bot Token格式无效",
-			Latency: time.Since(start).Milliseconds(),
-		}
-	}
-
-	if telegramConfig.ChatID == "" {
-		return &model.ConnectionTestResult{
-			Success: false,
-			Message: "Chat ID不能为空",
+			Message: fmt.Sprintf("发送测试通知失败: %v", err),
 			Latency: time.Since(start).Milliseconds(),
 		}
 	}
 
 	return &model.ConnectionTestResult{
 		Success: true,
-		Message: "Telegram通知配置格式有效（需要完整Telegram库进行完整测试）",
+		Message: "✅ Telegram测试通知发送成功！请检查您的Telegram",
 		Latency: time.Since(start).Milliseconds(),
 	}
 }

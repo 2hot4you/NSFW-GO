@@ -43,7 +43,10 @@ func (rc *RankingCrawler) CrawlRanking(ctx context.Context, rankType string) ([]
 	// 构建排行榜URL
 	rankingURL := fmt.Sprintf("%s/rankings/movies?p=%s&t=censored", rc.baseURL, rankType)
 
-	c := rc.GetCollector().Clone()
+	// 为每次爬取创建新的 Collector，避免 URL 缓存问题
+	c := colly.NewCollector(
+		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"),
+	)
 
 	// 解析排行榜页面
 	c.OnHTML(".movie-list .item", func(e *colly.HTMLElement) {

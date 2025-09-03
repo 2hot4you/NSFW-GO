@@ -24,7 +24,11 @@ func NewRankingHandler(rankingService *service.RankingService) *RankingHandler {
 
 // GetRankings 获取排行榜
 func (h *RankingHandler) GetRankings(c *gin.Context) {
-	rankType := c.DefaultQuery("type", model.RankTypeDaily)
+	// 兼容 type 和 period 参数
+	rankType := c.DefaultQuery("type", "")
+	if rankType == "" {
+		rankType = c.DefaultQuery("period", model.RankTypeDaily)
+	}
 	limitStr := c.DefaultQuery("limit", "50")
 
 	limit, err := strconv.Atoi(limitStr)

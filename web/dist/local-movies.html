@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="static/css/design-system.css">
     <link rel="stylesheet" href="static/css/components.css">
+    <link rel="stylesheet" href="static/css/tailwind-fixes.css">
     <style>
         /* 页面特定样式 */
         .movies-container {
@@ -352,12 +353,18 @@
         
         // 创建影片卡片
         function createMovieCard(movie) {
+            // 使用正确的字段名映射
+            const coverUrl = movie.fanart_url || movie.cover;
+            const fileSize = movie.size || movie.file_size || 0;
+            const actresses = movie.actress ? [movie.actress] : (movie.actresses || []);
+            const dateStr = movie.modified || movie.created_at;
+            
             if (currentView === 'grid') {
                 return `
                     <div class="glass-card hover-scale cursor-pointer" onclick="viewMovie('${movie.id}')">
                         <div class="relative overflow-hidden" style="aspect-ratio: 3/4;">
-                            ${movie.cover ? `
-                                <img src="${movie.cover}" alt="${movie.title}" class="movie-poster" loading="lazy">
+                            ${coverUrl ? `
+                                <img src="${coverUrl}" alt="${movie.title}" class="movie-poster" loading="lazy">
                             ` : `
                                 <div class="skeleton-image"></div>
                             `}
@@ -370,9 +377,9 @@
                             <h3 class="font-semibold text-sm mb-2 line-clamp-2">${movie.title || movie.code}</h3>
                             <div class="space-y-1 text-xs text-muted">
                                 <p>🎬 ${movie.code}</p>
-                                ${movie.actresses ? `<p>👤 ${movie.actresses.slice(0, 2).join(', ')}</p>` : ''}
-                                <p>💾 ${formatFileSize(movie.file_size)}</p>
-                                <p>📅 ${formatDate(movie.created_at)}</p>
+                                ${actresses.length > 0 ? `<p>👤 ${actresses.slice(0, 2).join(', ')}</p>` : ''}
+                                <p>💾 ${formatFileSize(fileSize)}</p>
+                                <p>📅 ${formatDate(dateStr)}</p>
                             </div>
                         </div>
                     </div>
@@ -382,8 +389,8 @@
                 return `
                     <div class="glass-card p-4 flex gap-4 cursor-pointer hover-scale" onclick="viewMovie('${movie.id}')">
                         <div class="w-24 h-32 flex-shrink-0">
-                            ${movie.cover ? `
-                                <img src="${movie.cover}" alt="${movie.title}" class="w-full h-full object-cover rounded">
+                            ${coverUrl ? `
+                                <img src="${coverUrl}" alt="${movie.title}" class="w-full h-full object-cover rounded">
                             ` : `
                                 <div class="skeleton-image rounded"></div>
                             `}
@@ -392,9 +399,9 @@
                             <h3 class="font-semibold mb-2">${movie.title || movie.code}</h3>
                             <div class="grid grid-cols-2 gap-2 text-sm text-muted">
                                 <p>🎬 ${movie.code}</p>
-                                <p>💾 ${formatFileSize(movie.file_size)}</p>
-                                ${movie.actresses ? `<p>👤 ${movie.actresses.join(', ')}</p>` : '<p></p>'}
-                                <p>📅 ${formatDate(movie.created_at)}</p>
+                                <p>💾 ${formatFileSize(fileSize)}</p>
+                                ${actresses.length > 0 ? `<p>👤 ${actresses.join(', ')}</p>` : '<p></p>'}
+                                <p>📅 ${formatDate(dateStr)}</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">

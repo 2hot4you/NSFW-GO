@@ -1,11 +1,12 @@
 package routes
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"nsfw-go/internal/api/handlers"
 	"nsfw-go/internal/crawler"
-	"nsfw-go/internal/model"
 	"nsfw-go/internal/repo"
 	"nsfw-go/internal/service"
 	"strings"
@@ -66,45 +67,94 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	// 创建配置服务
 	configService := service.NewConfigService("config.yaml")
 
-	// 加载系统配置
-	systemConfig, err := configService.GetConfig()
-	if err != nil {
-		// 如果加载配置失败，使用默认配置
-		systemConfig = &model.SystemConfig{
-			Torrent: model.TorrentConfig{
-				Jackett: model.JackettConfig{
-					Host:       "http://your-jackett-server:9117",
-					APIKey:     "your_jackett_api_key",
-					Timeout:    "30s",
-					RetryCount: 3,
-				},
-				QBittorrent: model.QBittorrentConfig{
-					Host:        "http://your-qbittorrent-server:8080",
-					Username:    "admin",
-					Password:    "adminadmin",
-					Timeout:     "30s",
-					RetryCount:  3,
-					DownloadDir: "/downloads",
-				},
-			},
+	// 创建配置存储服务来读取数据库配置
+	configStoreService := service.NewConfigStoreService()
+	
+	log.Printf("🔧 开始从数据库加载服务配置...")
+
+	// 从数据库获取 Telegram 配置并创建服务
+	var telegramService *service.TelegramService
+	if botEnabled, err := configStoreService.GetConfig("bot.enabled"); err == nil {
+		if enabled := botEnabled.Bool(); enabled {
+			if botToken, err := configStoreService.GetConfig("bot.token"); err == nil {
+				token := botToken.String()
+				// 去除可能的双引号
+				token = strings.Trim(token, "\"")
+				if token != "" {
+					// 获取管理员ID列表
+					var chatID string
+					if adminIds, err := configStoreService.GetConfig("bot.admin_ids"); err == nil {
+						adminIdsStr := adminIds.String()
+						// 去除外层双引号
+						adminIdsStr = strings.Trim(adminIdsStr, "\"")
+						log.Printf("🔍 解析管理员ID字符串: %s", adminIdsStr)
+						
+						var ids []float64
+						if err := json.Unmarshal([]byte(adminIdsStr), &ids); err == nil && len(ids) > 0 {
+							chatID = fmt.Sprintf("%.0f", ids[0])
+							log.Printf("🆔 解析得到聊天ID: %s", chatID)
+						} else {
+							log.Printf("❌ 解析管理员ID失败: %v", err)
+						}
+					}
+					telegramService = service.NewTelegramService(token, chatID, enabled)
+					log.Printf("✅ Telegram 服务已创建，Token: %s..., 聊天ID: %s", token[:10], chatID)
+				} else {
+					log.Printf("⚠️  Telegram token 为空，跳过服务创建")
+				}
+			}
+		} else {
+			log.Printf("⚠️  Telegram 服务未启用")
 		}
 	}
 
-	// 创建种子下载服务
+	// 从数据库获取种子下载配置并创建服务
 	localMovieAdapter := &LocalMovieAdapter{repo: localMovieRepo}
+	
+	// 获取 Jackett 配置
+	jackettHost := "http://your-jackett-server:9117"
+	jackettAPIKey := "your_jackett_api_key"
+	if config, err := configStoreService.GetConfig("torrent.jackett.host"); err == nil {
+		jackettHost = strings.Trim(config.String(), "\"")
+	}
+	if config, err := configStoreService.GetConfig("torrent.jackett.api_key"); err == nil {
+		jackettAPIKey = strings.Trim(config.String(), "\"")
+	}
+	
+	// 获取 qBittorrent 配置
+	qbittorrentHost := "http://your-qbittorrent-server:8080"
+	qbittorrentUser := "admin"
+	qbittorrentPass := "adminadmin"
+	if config, err := configStoreService.GetConfig("torrent.qbittorrent.host"); err == nil {
+		qbittorrentHost = strings.Trim(config.String(), "\"")
+	}
+	if config, err := configStoreService.GetConfig("torrent.qbittorrent.username"); err == nil {
+		qbittorrentUser = strings.Trim(config.String(), "\"")
+	}
+	if config, err := configStoreService.GetConfig("torrent.qbittorrent.password"); err == nil {
+		qbittorrentPass = strings.Trim(config.String(), "\"")
+	}
+	
 	torrentService := service.NewTorrentService(
-		systemConfig.Torrent.Jackett.Host,
-		systemConfig.Torrent.Jackett.APIKey,
-		systemConfig.Torrent.QBittorrent.Host,
-		systemConfig.Torrent.QBittorrent.Username,
-		systemConfig.Torrent.QBittorrent.Password,
+		jackettHost,
+		jackettAPIKey,
+		qbittorrentHost,
+		qbittorrentUser,
+		qbittorrentPass,
 		localMovieAdapter,
 	)
+	
+	log.Printf("🔧 种子服务已创建 - Jackett: %s, qBittorrent: %s", jackettHost, qbittorrentHost)
+	
+	// 注入Telegram服务到种子下载服务
+	if telegramService != nil {
+		torrentService.SetTelegramService(telegramService)
+	}
 
 	// 创建扫描服务（从配置中获取媒体库路径）
-	mediaLibraryPath := ""
-	if systemConfig != nil {
-		mediaLibraryPath = systemConfig.Media.BasePath
+	mediaLibraryPath := "/media/default"
+	if config, err := configStoreService.GetConfig("media.base_path"); err == nil {
+		mediaLibraryPath = config.String()
 	}
 	scannerService := service.NewScannerService(localMovieRepo, mediaLibraryPath)
 
@@ -113,12 +163,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	rankingService.Start()
 
 	// 创建处理器
-	localHandler := handlers.NewLocalHandler(localMovieRepo, scannerService)
+	localHandler := handlers.NewLocalHandler(localMovieRepo, scannerService, mediaLibraryPath)
 	statsHandler := handlers.NewStatsHandler(localMovieRepo, rankingRepo)
 	rankingHandler := handlers.NewRankingHandler(rankingService)
 	searchHandler := handlers.NewSearchHandler(localMovieRepo, rankingRepo)
 	javdbSearchHandler := handlers.NewJAVDbSearchHandler(javdbSearchService)
-	configHandler := handlers.NewConfigHandler(configService)
+	configHandler := handlers.NewConfigHandler(configService, telegramService)
 	configStoreHandler := handlers.NewConfigStoreHandler()
 	torrentHandler := handlers.NewTorrentHandler(torrentService)
 	systemHandler := handlers.NewSystemHandler()
@@ -173,6 +223,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				config.GET("", configHandler.GetConfig)                            // 获取系统配置（从数据库）
 				config.POST("", configHandler.SaveConfig)                          // 保存系统配置（到数据库）
 				config.POST("/test", configHandler.TestConnection)                 // 测试连接
+				config.POST("/test-notification", configHandler.TestNotification)  // 测试通知发送
 				config.POST("/validate", configHandler.ValidateConfig)             // 验证配置
 				config.GET("/categories", configHandler.GetConfigCategories)       // 获取配置分类
 				config.GET("/category/:category", configHandler.GetConfigByCategory) // 按分类获取配置
@@ -275,3 +326,4 @@ func clearDatabaseData(db *gorm.DB) {
 
 	// 注意：不清空 local_movies 和 rankings 表，因为这是我们的缓存数据
 }
+

@@ -1,0 +1,73 @@
+/* Tailwind CSS 覆盖修复 - 确保暗色主题输入框可见 */
+
+/* 修复所有输入框的背景和文字颜色 */
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="email"],
+input[type="url"],
+input[type="search"],
+input[type="tel"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+textarea,
+select {
+    background-color: #1a1a2e !important;
+    color: #e4e4e7 !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* 输入框聚焦状态 */
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="url"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+input[type="datetime-local"]:focus,
+input[type="time"]:focus,
+textarea:focus,
+select:focus {
+    background-color: #0f0f23 !important;
+    border-color: #8b5cf6 !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1) !important;
+}
+
+/* 禁用状态 */
+input:disabled,
+textarea:disabled,
+select:disabled {
+    background-color: #16162a !important;
+    color: #71717a !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+/* 占位符文字颜色 */
+input::placeholder,
+textarea::placeholder {
+    color: #71717a !important;
+}
+
+/* 下拉选项背景 */
+select option {
+    background-color: #1a1a2e !important;
+    color: #e4e4e7 !important;
+}
+
+/* 复选框和单选按钮 */
+input[type="checkbox"],
+input[type="radio"] {
+    background-color: #1a1a2e !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+    background-color: #8b5cf6 !important;
+    border-color: #8b5cf6 !important;
+}

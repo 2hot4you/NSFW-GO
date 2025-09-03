@@ -95,36 +95,46 @@ check_docker_container() {
 
 # 函数：检查Go开发服务器
 check_go_dev() {
-    if [ -f "$PIDFILE" ]; then
+    # 首先检查API端口是否监听（最可靠的方法）
+    if lsof -i :$API_PORT >/dev/null 2>&1 || netstat -tlnp 2>/dev/null | grep -q ":$API_PORT "; then
+        # 尝试获取进程信息
+        local pid=""
+        if command -v lsof >/dev/null 2>&1; then
+            pid=$(lsof -ti :$API_PORT 2>/dev/null | head -1)
+        elif command -v netstat >/dev/null 2>&1; then
+            pid=$(netstat -tlnp 2>/dev/null | grep ":$API_PORT " | awk '{print $7}' | cut -d'/' -f1 | head -1)
+        fi
+        
+        if [ ! -z "$pid" ]; then
+            echo -e "${GREEN}✅${NC} Go 开发服务器 - 运行中 [PID: $pid] (端口 $API_PORT)"
+        else
+            echo -e "${GREEN}✅${NC} Go 开发服务器 - 运行中 (端口 $API_PORT)"
+        fi
+        return 0
+    elif [ -f "$PIDFILE" ]; then
         local pid=$(cat "$PIDFILE")
         if kill -0 "$pid" 2>/dev/null; then
-            echo -e "${GREEN}✅${NC} Go 开发服务器 - 运行中 [PID: $pid]"
-            return 0
+            echo -e "${YELLOW}⚠️${NC} Go 开发服务器 - 进程运行但端口未监听 [PID: $pid]"
+            return 1
         else
             echo -e "${RED}❌${NC} Go 开发服务器 - PID文件存在但进程已死"
             rm -f "$PIDFILE"
             return 1
         fi
     else
-        # 检查Air进程
+        # 检查相关进程
         if pgrep -f "air" >/dev/null 2>&1; then
             local pid=$(pgrep -f "air" | head -1)
-            echo -e "${GREEN}✅${NC} Go 开发服务器 - 运行中 [PID: $pid] (Air热重载)"
-            return 0
-        # 检查make dev进程
+            echo -e "${YELLOW}⚠️${NC} Go 开发服务器 - Air进程运行但端口未监听 [PID: $pid]"
+            return 1
         elif pgrep -f "make dev" >/dev/null 2>&1; then
             local pid=$(pgrep -f "make dev" | head -1)
-            echo -e "${GREEN}✅${NC} Go 开发服务器 - 运行中 [PID: $pid] (make dev)"
-            return 0
-        # 检查nsfw-go进程
+            echo -e "${YELLOW}⚠️${NC} Go 开发服务器 - make dev运行但端口未监听 [PID: $pid]"
+            return 1
         elif pgrep -f "nsfw-go" >/dev/null 2>&1; then
             local pid=$(pgrep -f "nsfw-go" | head -1)
-            echo -e "${GREEN}✅${NC} Go 开发服务器 - 运行中 [PID: $pid]"
-            return 0
-        # 最后检查端口
-        elif check_port $API_PORT "API服务器" >/dev/null 2>&1; then
-            echo -e "${GREEN}✅${NC} Go 开发服务器 - 运行中 (端口监听检测)"
-            return 0
+            echo -e "${YELLOW}⚠️${NC} Go 开发服务器 - nsfw-go进程运行但端口未监听 [PID: $pid]"
+            return 1
         else
             echo -e "${RED}❌${NC} Go 开发服务器 - 未运行"
             return 1

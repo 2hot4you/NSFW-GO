@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"nsfw-go/internal/service"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -135,7 +136,23 @@ func (h *TorrentHandler) DownloadTorrent(c *gin.Context) {
 		return
 	}
 
-	err := h.torrentService.DownloadTorrent(downloadURI)
+	// 区分磁力链接和HTTP下载链接
+	var magnetURI, httpDownloadURI string
+	if strings.HasPrefix(downloadURI, "magnet:") {
+		magnetURI = downloadURI
+	} else {
+		httpDownloadURI = downloadURI
+	}
+
+	// 使用带通知的下载方法
+	err := h.torrentService.DownloadTorrentWithNotification(
+		magnetURI,
+		httpDownloadURI,
+		request.Code,
+		request.Title,
+		request.Tracker,
+		request.Size,
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{
 			Code:    "ERROR",

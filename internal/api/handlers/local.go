@@ -14,10 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	MediaLibraryPath = "/MediaCenter/NSFW/Hub/#Done"
-)
-
 // LocalMovie 本地影片结构（用于API响应）
 type LocalMovie struct {
 	Title      string `json:"title"`
@@ -34,15 +30,17 @@ type LocalMovie struct {
 
 // LocalHandler 本地影片处理器
 type LocalHandler struct {
-	localMovieRepo repo.LocalMovieRepository
-	scannerService *service.ScannerService
+	localMovieRepo   repo.LocalMovieRepository
+	scannerService   *service.ScannerService
+	mediaLibraryPath string
 }
 
 // NewLocalHandler 创建本地影片处理器
-func NewLocalHandler(localMovieRepo repo.LocalMovieRepository, scannerService *service.ScannerService) *LocalHandler {
+func NewLocalHandler(localMovieRepo repo.LocalMovieRepository, scannerService *service.ScannerService, mediaLibraryPath string) *LocalHandler {
 	return &LocalHandler{
-		localMovieRepo: localMovieRepo,
-		scannerService: scannerService,
+		localMovieRepo:   localMovieRepo,
+		scannerService:   scannerService,
+		mediaLibraryPath: mediaLibraryPath,
 	}
 }
 
@@ -185,10 +183,10 @@ func (h *LocalHandler) ServeImage(c *gin.Context) {
 	}
 
 	// 构建完整的文件路径
-	fullPath := filepath.Join(MediaLibraryPath, decodedPath)
+	fullPath := filepath.Join(h.mediaLibraryPath, decodedPath)
 
 	// 安全检查：确保路径在媒体库目录内
-	if !strings.HasPrefix(fullPath, MediaLibraryPath) {
+	if !strings.HasPrefix(fullPath, h.mediaLibraryPath) {
 		c.JSON(http.StatusForbidden, Response{
 			Code:    "ERROR",
 			Message: "访问被拒绝",

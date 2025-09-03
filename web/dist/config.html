@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="static/css/design-system.css">
     <link rel="stylesheet" href="static/css/components.css">
+    <link rel="stylesheet" href="static/css/tailwind-fixes.css">
     <style>
         /* 页面特定样式 */
         .config-container {
@@ -434,21 +435,41 @@
                     </div>
                     <div class="input-group md:col-span-2">
                         <label>👮 管理员用户ID列表</label>
-                        <div id="telegram-admin-ids" class="array-input mb-4">
-                            <!-- 动态生成 -->
-                        </div>
-                        <button type="button" onclick="addAdminId()" class="btn btn-sm btn-primary">
-                            <i class="fas fa-plus"></i>
-                            添加管理员ID
-                        </button>
+                        <textarea id="telegram-admin-ids" class="input-field" rows="3" placeholder="每行输入一个管理员ID&#10;例如：&#10;123456789&#10;987654321"></textarea>
+                        <small class="text-muted">每行一个Telegram用户ID，可以通过Bot发送 /id 命令获取</small>
                     </div>
                 </div>
-                <div class="mt-6">
+                
+                <!-- Telegram通知设置 -->
+                <div class="config-group mt-4">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-bell text-yellow-400"></i>
+                        🔔 通知设置
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="notification-telegram-enabled" class="rounded">
+                                <span>🔔 启用Telegram通知</span>
+                            </label>
+                        </div>
+                        <div class="input-group">
+                            <label>💬 通知聊天ID</label>
+                            <input type="text" id="notification-telegram-chat-id" class="input-field" placeholder="聊天ID或频道ID">
+                            <small class="text-muted">可以是群组ID、频道ID或私聊ID</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 flex gap-4">
                     <button onclick="testTelegramConnection()" class="btn btn-primary">
                         <i class="fas fa-plug"></i>
-                        测试Telegram连接
+                        测试连接
                     </button>
-                    <div id="telegram-test-result" class="test-result"></div>
+                    <button onclick="testTelegramNotification()" class="btn btn-success">
+                        <i class="fas fa-paper-plane"></i>
+                        发送测试通知
+                    </button>
+                    <div id="telegram-test-result" class="test-result mt-4"></div>
                 </div>
             </div>
         </div>
@@ -665,26 +686,6 @@
                     <i class="fas fa-bell text-orange-400"></i>
                     🔔 通知配置
                 </h2>
-                
-                <!-- Telegram通知 -->
-                <div class="config-group">
-                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <i class="fab fa-telegram text-blue-400"></i>
-                        💬 Telegram通知
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="input-group">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" id="notification-telegram-enabled" class="rounded">
-                                <span>🔔 启用Telegram通知</span>
-                            </label>
-                        </div>
-                        <div class="input-group">
-                            <label>💬 通知聊天ID</label>
-                            <input type="text" id="notification-telegram-chat-id" class="input-field" placeholder="聊天ID">
-                        </div>
-                    </div>
-                </div>
                 
                 <!-- 邮件通知 -->
                 <div class="config-group">

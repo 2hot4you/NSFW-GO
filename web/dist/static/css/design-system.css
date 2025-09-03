@@ -18,8 +18,8 @@
     --info: #3b82f6;
 }
 
-/* 🌙 深色主题 */
-[data-theme="dark"] {
+/* 🌙 深色主题（默认） */
+:root {
     /* 背景色 */
     --bg-dark: #0f0f13;
     --bg-dark-secondary: #1a1a23;
@@ -33,29 +33,9 @@
     --text-muted: #6b7280;
     --text-accent: var(--primary-light);
     
-    /* 边框 */
-    --border-color: rgba(255, 255, 255, 0.1);
-    --border-color-hover: rgba(255, 255, 255, 0.2);
-}
-
-/* ☀️ 浅色主题 */
-[data-theme="light"] {
-    /* 背景色 */
-    --bg-dark: #f9fafb;
-    --bg-dark-secondary: #ffffff;
-    --bg-dark-tertiary: #f3f4f6;
-    --bg-card: rgba(255, 255, 255, 0.9);
-    --bg-card-hover: rgba(255, 255, 255, 1);
-    
-    /* 文字颜色 */
-    --text-primary: #1f2937;
-    --text-secondary: #4b5563;
-    --text-muted: #9ca3af;
-    --text-accent: var(--primary-dark);
-    
-    /* 边框 */
-    --border-color: rgba(0, 0, 0, 0.1);
-    --border-color-hover: rgba(0, 0, 0, 0.2);
+    /* 边框 - 增强可见性 */
+    --border-color: rgba(255, 255, 255, 0.2);
+    --border-color-hover: rgba(255, 255, 255, 0.3);
 }
 
 /* 🎯 通用尺寸 */
