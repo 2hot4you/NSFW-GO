@@ -315,17 +315,23 @@
         const container = document.getElementById('downloadsList');
         if (!container) return;
 
-        if (!torrents || torrents.length === 0) {
+        // 过滤只显示PornDB标签的种子
+        const porndbTorrents = (torrents || []).filter(torrent => {
+            const tags = torrent.tags || '';
+            return tags.includes('PornDB');
+        });
+
+        if (porndbTorrents.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-12">
                     <i class="fas fa-download text-6xl text-gray-600 mb-4"></i>
-                    <p class="text-gray-500">暂无下载任务</p>
+                    <p class="text-gray-500">暂无 PornDB 下载任务</p>
                 </div>
             `;
             return;
         }
 
-        const downloadItems = torrents.map(torrent => createDownloadItem(torrent)).join('');
+        const downloadItems = porndbTorrents.map(torrent => createDownloadItem(torrent)).join('');
         container.innerHTML = `
             <div class="space-y-4">
                 ${downloadItems}
@@ -491,11 +497,17 @@
     function updateDownloadStats(torrents) {
         if (!torrents) return;
 
-        const downloading = torrents.filter(t => t.state === 'downloading').length;
-        const completed = torrents.filter(t => t.state === 'completed' || t.state === 'seeding').length;
-        const total = torrents.length;
+        // 过滤只显示PornDB标签的种子
+        const porndbTorrents = torrents.filter(torrent => {
+            const tags = torrent.tags || '';
+            return tags.includes('PornDB');
+        });
+
+        const downloading = porndbTorrents.filter(t => t.state === 'downloading').length;
+        const completed = porndbTorrents.filter(t => t.state === 'completed' || t.state === 'seeding').length;
+        const total = porndbTorrents.length;
         
-        const totalSpeed = torrents.reduce((sum, t) => sum + (t.dlspeed || 0), 0);
+        const totalSpeed = porndbTorrents.reduce((sum, t) => sum + (t.dlspeed || 0), 0);
 
         const statsContainer = document.getElementById('downloadStats');
         if (statsContainer) {

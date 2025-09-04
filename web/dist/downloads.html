@@ -361,6 +361,12 @@
         
         // 更新统计数据
         function updateStats(stats) {
+            // 首先过滤只显示PornDB标签的种子
+            const porndbDownloads = allDownloads.filter(torrent => {
+                const tags = torrent.tags || '';
+                return tags.includes('PornDB');
+            });
+            
             // 统计各状态数量
             let downloading = 0;
             let completed = 0;
@@ -371,7 +377,7 @@
             let totalRatio = 0;
             let activeCount = 0;
             
-            allDownloads.forEach(torrent => {
+            porndbDownloads.forEach(torrent => {
                 const state = torrent.state;
                 totalSize += torrent.size || 0;
                 
@@ -404,16 +410,23 @@
             document.getElementById('global-download-speed').textContent = formatSpeed(totalDownloadSpeed);
             document.getElementById('global-upload-speed').textContent = formatSpeed(totalUploadSpeed);
             document.getElementById('active-torrents').textContent = activeCount;
-            document.getElementById('total-ratio').textContent = allDownloads.length > 0 ? 
-                (totalRatio / allDownloads.length).toFixed(2) : '0.00';
+            document.getElementById('total-ratio').textContent = porndbDownloads.length > 0 ? 
+                (totalRatio / porndbDownloads.length).toFixed(2) : '0.00';
         }
         
         // 渲染下载列表
         function renderDownloads() {
             const container = document.getElementById('downloadsContainer');
             
-            // 应用筛选
-            let filteredDownloads = filterDownloadsByStatus(allDownloads, currentFilter);
+            // 首先过滤只显示PornDB标签的种子
+            let porndbDownloads = allDownloads.filter(torrent => {
+                // 检查种子是否有PornDB标签
+                const tags = torrent.tags || '';
+                return tags.includes('PornDB');
+            });
+            
+            // 应用状态筛选
+            let filteredDownloads = filterDownloadsByStatus(porndbDownloads, currentFilter);
             
             if (filteredDownloads.length === 0) {
                 if (currentFilter !== 'all') {

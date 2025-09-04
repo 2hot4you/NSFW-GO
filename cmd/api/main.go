@@ -13,6 +13,8 @@ import (
 	"nsfw-go/internal/database"
 	"nsfw-go/migrations"
 
+	// Swagger 相关导入
+	_ "nsfw-go/docs/swagger" // swagger docs
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq" // PostgreSQL驱动
 )
@@ -29,6 +31,12 @@ const (
 	AppVersion = "v1.0.0"
 	AppDesc    = "智能成人影视库管理系统"
 )
+
+// @title NSFW-Go API
+// @version 1.0
+// @description 智能成人影视库管理系统 - 提供影片管理、种子下载、排行榜等功能
+// @host localhost:8080
+// @BasePath /api/v1
 
 func main() {
 	flag.Parse()
@@ -92,6 +100,8 @@ func main() {
 
 	// 创建Gin引擎
 	r := gin.Default()
+
+	// Swagger 路由将在 routes.SetupRoutes 中设置
 
 	// 设置路由
 	routes.SetupRoutes(r, database.DB)

@@ -14,6 +14,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq" // PostgreSQL驱动
+	ginSwagger "github.com/swaggo/gin-swagger"
+	swaggerFiles "github.com/swaggo/files"
 	"gorm.io/gorm"
 )
 
@@ -154,7 +156,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	// 创建扫描服务（从配置中获取媒体库路径）
 	mediaLibraryPath := "/media/default"
 	if config, err := configStoreService.GetConfig("media.base_path"); err == nil {
-		mediaLibraryPath = config.String()
+		mediaLibraryPath = strings.Trim(config.String(), "\"")
 	}
 	scannerService := service.NewScannerService(localMovieRepo, mediaLibraryPath)
 
@@ -285,6 +287,10 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	r.StaticFile("/downloads.html", "./web/dist/downloads.html")
 	r.StaticFile("/javdb-search-test.html", "./web/dist/javdb-search-test.html")
 	r.StaticFile("/favicon.ico", "./web/dist/favicon.ico")
+
+	// Swagger 文档路由（必须在 NoRoute 之前注册）
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	log.Printf("📚 Swagger 文档: http://localhost:8080/swagger/index.html")
 
 	// 处理前端路由（SPA）- 只对非API路径生效
 	r.NoRoute(func(c *gin.Context) {

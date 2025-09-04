@@ -328,8 +328,8 @@ func (s *TorrentService) DownloadTorrent(downloadURI string) error {
 	addData := url.Values{
 		"urls":        {downloadURI}, // qBittorrent 的 urls 参数可以同时处理磁力链接和HTTP链接
 		"savepath":    {downloadPath}, // 从配置获取下载目录
-		"tags":        {"NSFW"}, // 添加NSFW标签
-		"category":    {"NSFW"}, // 设置分类
+		"tags":        {"PornDB"}, // 添加PornDB标签
+		"category":    {"PornDB"}, // 设置分类
 		"paused":      {"false"}, // 立即开始下载
 		"root_folder": {"false"}, // 不创建根文件夹
 		"rename":      {""}, // 不重命名
@@ -342,8 +342,8 @@ func (s *TorrentService) DownloadTorrent(downloadURI string) error {
 	fmt.Printf("   URL: %s\n", addURL)
 	fmt.Printf("   下载路径: %s\n", downloadPath)
 	fmt.Printf("   下载URI: %s\n", downloadURI)
-	fmt.Printf("   分类: NSFW\n")
-	fmt.Printf("   标签: NSFW\n")
+	fmt.Printf("   分类: PornDB\n")
+	fmt.Printf("   标签: PornDB\n")
 
 	req, err := http.NewRequest("POST", addURL, strings.NewReader(addData.Encode()))
 	if err != nil {
@@ -384,7 +384,7 @@ func (s *TorrentService) DownloadTorrent(downloadURI string) error {
 	return nil
 }
 
-// GetTorrentList 获取qBittorrent中的种子列表
+// GetTorrentList 获取qBittorrent中的种子列表（只返回PornDB标签的种子）
 func (s *TorrentService) GetTorrentList() ([]map[string]interface{}, error) {
 	client := &http.Client{
 		Timeout: s.timeout,
@@ -413,8 +413,8 @@ func (s *TorrentService) GetTorrentList() ([]map[string]interface{}, error) {
 		return nil, fmt.Errorf("未获取到qBittorrent登录Cookie")
 	}
 
-	// 获取种子列表
-	listURL := fmt.Sprintf("%s/api/v2/torrents/info", s.qbittorrentHost)
+	// 获取种子列表，只显示标签为 PornDB 的种子
+	listURL := fmt.Sprintf("%s/api/v2/torrents/info?tag=PornDB", s.qbittorrentHost)
 	req, err := http.NewRequest("GET", listURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("创建获取种子列表请求失败: %v", err)
