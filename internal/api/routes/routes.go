@@ -46,6 +46,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	// 创建仓库
 	localMovieRepo := repo.NewLocalMovieRepository(db)
 	rankingRepo := repo.NewRankingRepository(db)
+	rankingDownloadTaskRepo := repo.NewRankingDownloadTaskRepository(db)
+	subscriptionRepo := repo.NewSubscriptionRepository(db)
 
 	// 创建爬虫配置
 	crawlerConfig := &crawler.CrawlerConfig{
@@ -153,6 +155,17 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		torrentService.SetTelegramService(telegramService)
 	}
 
+	// 创建排行榜下载服务
+	rankingDownloadService := service.NewRankingDownloadService(
+		rankingDownloadTaskRepo,
+		subscriptionRepo,
+		rankingRepo,
+		localMovieRepo,
+		torrentService,
+		telegramService,
+	)
+	log.Printf("📥 排行榜下载服务已创建")
+
 	// 创建扫描服务（从配置中获取媒体库路径）
 	mediaLibraryPath := "/media/default"
 	if config, err := configStoreService.GetConfig("media.base_path"); err == nil {
@@ -168,6 +181,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	localHandler := handlers.NewLocalHandler(localMovieRepo, scannerService, mediaLibraryPath)
 	statsHandler := handlers.NewStatsHandler(localMovieRepo, rankingRepo)
 	rankingHandler := handlers.NewRankingHandler(rankingService)
+	rankingDownloadHandler := handlers.NewRankingDownloadHandler(rankingDownloadService)
 	searchHandler := handlers.NewSearchHandler(localMovieRepo, rankingRepo)
 	javdbSearchHandler := handlers.NewJAVDbSearchHandler(javdbSearchService)
 	configHandler := handlers.NewConfigHandler(configService, telegramService)
@@ -206,6 +220,21 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				rankings.GET("/local", rankingHandler.GetLocalExists)  // 获取本地已存在的排行榜影片
 				rankings.POST("/crawl", rankingHandler.TriggerCrawl)   // 手动触发爬取
 				rankings.POST("/check", rankingHandler.TriggerCheck)   // 手动触发本地检查
+
+				// 下载任务相关
+				rankings.POST("/download", rankingDownloadHandler.StartDownload)                        // 开始下载任务
+				rankings.GET("/download-status/:code", rankingDownloadHandler.GetDownloadStatus)        // 获取下载状态
+				rankings.GET("/download-tasks", rankingDownloadHandler.GetDownloadTasks)                // 获取任务列表
+				rankings.DELETE("/download-tasks/:id", rankingDownloadHandler.CancelTask)               // 取消任务
+				rankings.POST("/download-tasks/:id/retry", rankingDownloadHandler.RetryTask)            // 重试任务
+				rankings.GET("/download-stats", rankingDownloadHandler.GetTaskStats)                    // 获取任务统计
+				rankings.PUT("/download-tasks/:code/progress", rankingDownloadHandler.UpdateTaskProgress) // 更新任务进度
+
+				// 订阅下载相关
+				rankings.GET("/subscriptions", rankingDownloadHandler.GetSubscriptions)                       // 获取所有订阅配置
+				rankings.GET("/subscription/:rank_type", rankingDownloadHandler.GetSubscriptionStatus)        // 获取订阅状态
+				rankings.PUT("/subscription/:rank_type", rankingDownloadHandler.UpdateSubscription)           // 更新订阅配置
+				rankings.POST("/subscription/:rank_type/run", rankingDownloadHandler.RunSubscriptionDownload) // 执行订阅下载
 			}
 
 			// 统计信息路由

@@ -271,11 +271,24 @@ Makefile 自动安装所需工具：
 - 系统现在支持基于文件（config.yaml）和数据库存储的配置
 - 数据库配置优先于文件配置
 - 应用前使用配置测试端点验证设置
+- 配置更新 API：
+  ```bash
+  # 获取当前配置（包含数据库和文件合并结果）
+  curl -s "http://localhost:8080/api/v1/config"
+  
+  # 更新配置（会保存到数据库并创建备份）
+  curl -s -X POST "http://localhost:8080/api/v1/config" \
+    -H "Content-Type: application/json" \
+    -d '{"torrent": {"download_path": "/volume1/media/PornDB/Downloads"}}'
+  ```
 
 ### 种子下载集成
 - 需要外部 Jackett 和 qBittorrent 实例
-- 在 config.yaml 的 torrent 节中配置端点
+- **重要**：qBittorrent 运行在 Synology NAS (10.10.10.200:8085)，不是本地容器
+- 在 config.yaml 的 torrent 节中配置端点，但**数据库配置优先于文件配置**
 - 使用前通过配置面板测试连接性
+- 下载路径必须是 Synology 可访问的路径（如 `/volume1/media/PornDB/Downloads`）
+- 避免使用本地路径（如 `/media/PornDB/Downloads`）否则会出现权限拒绝错误
 
 ### 本地媒体扫描
 - 自动扫描每 15 分钟运行一次
@@ -294,3 +307,27 @@ make test    # 运行所有测试
 - 使用 `make profile` 进行 CPU 性能分析
 - 使用 `make memprofile` 进行内存分析
 - 生产环境可访问 `/debug/pprof/` 端点进行实时性能监控
+
+## 常见问题排查
+
+### 种子下载问题
+**权限拒绝错误**：`file_open error: Permission denied`
+- **原因**：qBittorrent 在 Synology NAS 上，无法访问本地路径
+- **解决**：确保下载路径使用 Synology 路径格式（如 `/volume1/media/PornDB/Downloads`）
+- **检查**：通过 `/api/v1/config` 确认 `torrent.download_path` 和 `torrent.qbittorrent.download_dir` 配置正确
+
+**种子添加失败**：`远程内容在服务器上未找到（404）`
+- **原因**：Jackett 种子链接有时效性，可能已过期
+- **解决**：重新搜索获取最新链接，或检查 Jackett 服务状态
+- **API**：`GET /api/v1/torrents/search?q=番号` 获取新链接
+
+### 服务启动问题
+**数据库连接失败**
+- **检查**：确保 PostgreSQL 在端口 5433 运行
+- **命令**：`make db-check` 验证连接
+- **重启**：`make compose` 重新启动所有服务
+
+**配置不生效**
+- **原因**：数据库配置覆盖文件配置
+- **查看**：`curl -s "http://localhost:8080/api/v1/config"` 查看生效配置
+- **更新**：通过 API 而不是修改 config.yaml 文件

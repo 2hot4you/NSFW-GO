@@ -247,6 +247,10 @@
                     <i class="fas fa-folder"></i>
                     <span>媒体库</span>
                 </button>
+                <button onclick="switchTab('subscription')" class="config-tab">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>订阅下载</span>
+                </button>
                 <button onclick="switchTab('torrent')" class="config-tab">
                     <i class="fas fa-download"></i>
                     <span>种子下载</span>
@@ -635,6 +639,156 @@
             </div>
         </div>
         
+        <!-- 订阅下载配置 -->
+        <div id="subscription-section" class="config-section">
+            <div class="glass-card p-8">
+                <h2 class="config-group-title">
+                    <i class="fas fa-calendar-check text-purple-400"></i>
+                    📅 订阅下载配置
+                </h2>
+                
+                <!-- 日榜订阅 -->
+                <div class="config-group">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-calendar-day text-blue-400"></i>
+                        📅 日榜订阅
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="input-group">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" id="daily-enabled" class="checkbox-input">
+                                启用日榜订阅
+                            </label>
+                        </div>
+                        <div class="input-group">
+                            <label>⏰ 小时限制</label>
+                            <input type="number" id="daily-hourly-limit" class="input-field" placeholder="10" min="1" max="100">
+                        </div>
+                        <div class="input-group">
+                            <label>📅 日限制</label>
+                            <input type="number" id="daily-daily-limit" class="input-field" placeholder="50" min="1" max="500">
+                        </div>
+                    </div>
+                    <div class="mt-4 flex gap-3">
+                        <button onclick="saveSubscription('daily')" class="btn btn-sm btn-success">
+                            <i class="fas fa-save"></i>
+                            保存设置
+                        </button>
+                        <button onclick="runSubscription('daily')" class="btn btn-sm btn-primary">
+                            <i class="fas fa-play"></i>
+                            立即执行
+                        </button>
+                        <button onclick="getSubscriptionStatus('daily')" class="btn btn-sm btn-info">
+                            <i class="fas fa-info-circle"></i>
+                            查看状态
+                        </button>
+                    </div>
+                    <div id="daily-status" class="test-result mt-3"></div>
+                </div>
+                
+                <!-- 周榜订阅 -->
+                <div class="config-group">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-calendar-week text-green-400"></i>
+                        📆 周榜订阅
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="input-group">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" id="weekly-enabled" class="checkbox-input">
+                                启用周榜订阅
+                            </label>
+                        </div>
+                        <div class="input-group">
+                            <label>⏰ 小时限制</label>
+                            <input type="number" id="weekly-hourly-limit" class="input-field" placeholder="10" min="1" max="100">
+                        </div>
+                        <div class="input-group">
+                            <label>📅 日限制</label>
+                            <input type="number" id="weekly-daily-limit" class="input-field" placeholder="50" min="1" max="500">
+                        </div>
+                    </div>
+                    <div class="mt-4 flex gap-3">
+                        <button onclick="saveSubscription('weekly')" class="btn btn-sm btn-success">
+                            <i class="fas fa-save"></i>
+                            保存设置
+                        </button>
+                        <button onclick="runSubscription('weekly')" class="btn btn-sm btn-primary">
+                            <i class="fas fa-play"></i>
+                            立即执行
+                        </button>
+                        <button onclick="getSubscriptionStatus('weekly')" class="btn btn-sm btn-info">
+                            <i class="fas fa-info-circle"></i>
+                            查看状态
+                        </button>
+                    </div>
+                    <div id="weekly-status" class="test-result mt-3"></div>
+                </div>
+                
+                <!-- 月榜订阅 -->
+                <div class="config-group">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-calendar-alt text-orange-400"></i>
+                        📊 月榜订阅
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="input-group">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" id="monthly-enabled" class="checkbox-input">
+                                启用月榜订阅
+                            </label>
+                        </div>
+                        <div class="input-group">
+                            <label>⏰ 小时限制</label>
+                            <input type="number" id="monthly-hourly-limit" class="input-field" placeholder="10" min="1" max="100">
+                        </div>
+                        <div class="input-group">
+                            <label>📅 日限制</label>
+                            <input type="number" id="monthly-daily-limit" class="input-field" placeholder="50" min="1" max="500">
+                        </div>
+                    </div>
+                    <div class="mt-4 flex gap-3">
+                        <button onclick="saveSubscription('monthly')" class="btn btn-sm btn-success">
+                            <i class="fas fa-save"></i>
+                            保存设置
+                        </button>
+                        <button onclick="runSubscription('monthly')" class="btn btn-sm btn-primary">
+                            <i class="fas fa-play"></i>
+                            立即执行
+                        </button>
+                        <button onclick="getSubscriptionStatus('monthly')" class="btn btn-sm btn-info">
+                            <i class="fas fa-info-circle"></i>
+                            查看状态
+                        </button>
+                    </div>
+                    <div id="monthly-status" class="test-result mt-3"></div>
+                </div>
+                
+                <!-- 全部订阅操作 -->
+                <div class="config-group">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-tasks text-cyan-400"></i>
+                        🎛️ 全部订阅操作
+                    </h3>
+                    <div class="flex gap-3">
+                        <button onclick="loadAllSubscriptions()" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-sync-alt"></i>
+                            刷新配置
+                        </button>
+                        <button onclick="runAllSubscriptions()" class="btn btn-sm btn-warning">
+                            <i class="fas fa-play-circle"></i>
+                            执行全部订阅
+                        </button>
+                        <button onclick="viewDownloadTasks()" class="btn btn-sm btn-info">
+                            <i class="fas fa-list"></i>
+                            查看下载任务
+                        </button>
+                    </div>
+                    <div id="all-subscriptions-status" class="test-result mt-3"></div>
+                </div>
+            </div>
+        </div>
+        
         <!-- 安全配置 -->
         <div id="security-section" class="config-section">
             <div class="glass-card p-8">
@@ -838,6 +992,10 @@
         // 页面加载完成
         document.addEventListener('DOMContentLoaded', function() {
             loadConfig();
+            loadAllSubscriptions(); // 加载订阅配置
+            
+            // 启动订阅状态自动更新
+            startSubscriptionStatusUpdates();
             
             // 监听滚动事件
             window.addEventListener('scroll', () => {
@@ -848,6 +1006,350 @@
                     backToTop.classList.add('hidden');
                 }
             });
+        });
+        
+        // 页面卸载时清理定时器
+        window.addEventListener('beforeunload', function() {
+            stopSubscriptionStatusUpdates();
+        });
+        
+        // ========== 订阅管理功能 ==========
+        
+        // 加载所有订阅配置
+        async function loadAllSubscriptions() {
+            try {
+                const response = await fetch('/api/v1/rankings/subscriptions');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    data.data.forEach(subscription => {
+                        updateSubscriptionUI(subscription.rank_type, subscription);
+                    });
+                    components.showNotification('✅ 订阅配置加载成功', 'success');
+                } else {
+                    throw new Error(data.error || '加载订阅配置失败');
+                }
+            } catch (error) {
+                console.error('加载订阅配置失败:', error);
+                components.showNotification('❌ 加载订阅配置失败', 'error');
+            }
+        }
+        
+        // 更新订阅UI
+        function updateSubscriptionUI(rankType, subscription) {
+            document.getElementById(`${rankType}-enabled`).checked = subscription.enabled;
+            document.getElementById(`${rankType}-hourly-limit`).value = subscription.hourly_limit;
+            document.getElementById(`${rankType}-daily-limit`).value = subscription.daily_limit;
+        }
+        
+        // 保存订阅配置
+        async function saveSubscription(rankType) {
+            try {
+                const enabled = document.getElementById(`${rankType}-enabled`).checked;
+                const hourlyLimit = parseInt(document.getElementById(`${rankType}-hourly-limit`).value) || 10;
+                const dailyLimit = parseInt(document.getElementById(`${rankType}-daily-limit`).value) || 50;
+                
+                const response = await fetch(`/api/v1/rankings/subscription/${rankType}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        enabled: enabled,
+                        hourly_limit: hourlyLimit,
+                        daily_limit: dailyLimit
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    components.showNotification(`✅ ${rankType}榜订阅配置保存成功`, 'success');
+                } else {
+                    throw new Error(data.error || '保存配置失败');
+                }
+            } catch (error) {
+                console.error('保存订阅配置失败:', error);
+                components.showNotification(`❌ 保存${rankType}榜配置失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 执行订阅下载
+        async function runSubscription(rankType) {
+            try {
+                components.showNotification(`🚀 正在执行${rankType}榜订阅下载...`, 'info');
+                
+                const response = await fetch(`/api/v1/rankings/subscription/${rankType}/run`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    components.showNotification(`✅ ${rankType}榜订阅下载已启动`, 'success');
+                    // 延迟获取状态更新
+                    setTimeout(() => getSubscriptionStatus(rankType), 2000);
+                } else {
+                    throw new Error(data.error || '执行订阅下载失败');
+                }
+            } catch (error) {
+                console.error('执行订阅下载失败:', error);
+                components.showNotification(`❌ 执行${rankType}榜订阅失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 获取订阅状态
+        async function getSubscriptionStatus(rankType, showNotification = true) {
+            try {
+                const response = await fetch(`/api/v1/rankings/subscription/${rankType}`);
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const status = data.data;
+                    const statusElement = document.getElementById(`${rankType}-status`);
+                    const rankTypeNames = { daily: '日榜', weekly: '周榜', monthly: '月榜' };
+                    
+                    // 根据剩余额度设置状态颜色
+                    const isWarning = (status.hourly_limit - status.hourly_used) <= 2 || (status.daily_limit - status.daily_used) <= 5;
+                    const isFull = !status.can_download;
+                    
+                    statusElement.className = `test-result ${isFull ? 'error' : isWarning ? 'warning' : 'success'}`;
+                    statusElement.style.display = 'block';
+                    
+                    const progressBar = (used, total) => {
+                        const percentage = total > 0 ? Math.round((used / total) * 100) : 0;
+                        const color = percentage >= 90 ? 'red' : percentage >= 70 ? 'orange' : 'green';
+                        return `<div style="background: #333; border-radius: 4px; overflow: hidden; height: 8px; margin: 2px 0;">
+                                    <div style="background: ${color}; width: ${percentage}%; height: 100%; transition: width 0.3s ease;"></div>
+                                </div>`;
+                    };
+                    
+                    statusElement.innerHTML = `
+                        <div class="text-sm space-y-2">
+                            <p><strong>📊 ${rankTypeNames[rankType]}状态</strong> <span class="text-xs text-gray-400">(${new Date().toLocaleTimeString()})</span></p>
+                            <div>
+                                <p>⏰ 小时额度：${status.hourly_used} / ${status.hourly_limit} 
+                                   <span class="text-xs ${status.hourly_used >= status.hourly_limit ? 'text-red-400' : 'text-green-400'}">
+                                       (${status.hourly_limit - status.hourly_used}剩余)
+                                   </span>
+                                </p>
+                                ${progressBar(status.hourly_used, status.hourly_limit)}
+                            </div>
+                            <div>
+                                <p>📅 日额度：${status.daily_used} / ${status.daily_limit}
+                                   <span class="text-xs ${status.daily_used >= status.daily_limit ? 'text-red-400' : 'text-green-400'}">
+                                       (${status.daily_limit - status.daily_used}剩余)
+                                   </span>
+                                </p>
+                                ${progressBar(status.daily_used, status.daily_limit)}
+                            </div>
+                            <p>🚦 状态：${status.can_download ? '✅ 可下载' : '❌ 已达限制'}</p>
+                        </div>
+                    `;
+                    
+                    if (showNotification && !status.can_download) {
+                        components.showNotification(`⚠️ ${rankTypeNames[rankType]}已达下载限制`, 'warning');
+                    }
+                } else {
+                    throw new Error(data.error || '获取状态失败');
+                }
+            } catch (error) {
+                console.error('获取订阅状态失败:', error);
+                const statusElement = document.getElementById(`${rankType}-status`);
+                statusElement.className = 'test-result error';
+                statusElement.style.display = 'block';
+                statusElement.innerHTML = `
+                    <div class="text-sm">
+                        <p>❌ 获取状态失败</p>
+                        <p class="text-xs text-gray-400">${error.message}</p>
+                        <button onclick="getSubscriptionStatus('${rankType}')" class="btn btn-xs btn-secondary mt-2">
+                            <i class="fas fa-redo"></i> 重试
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        // 执行所有订阅
+        async function runAllSubscriptions() {
+            components.showNotification('🚀 正在执行所有订阅...', 'info');
+            
+            const types = ['daily', 'weekly', 'monthly'];
+            let successCount = 0;
+            
+            for (const type of types) {
+                try {
+                    const response = await fetch(`/api/v1/rankings/subscription/${type}/run`, {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        successCount++;
+                    }
+                } catch (error) {
+                    console.error(`执行${type}榜订阅失败:`, error);
+                }
+                
+                // 避免请求过于频繁
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            if (successCount === types.length) {
+                components.showNotification('✅ 所有订阅已启动完成', 'success');
+            } else {
+                components.showNotification(`⚠️ 启动完成，成功: ${successCount}/${types.length}`, 'warning');
+            }
+            
+            // 更新状态显示
+            const statusElement = document.getElementById('all-subscriptions-status');
+            statusElement.className = `test-result ${successCount === types.length ? 'success' : 'warning'}`;
+            statusElement.style.display = 'block';
+            statusElement.innerHTML = `
+                <div class="text-sm">
+                    <p><strong>📊 批量执行结果: ${successCount}/${types.length}</strong></p>
+                    <p class="text-xs text-gray-400">执行时间: ${new Date().toLocaleString()}</p>
+                </div>
+            `;
+            
+            // 延迟刷新状态
+            setTimeout(() => {
+                types.forEach(type => getSubscriptionStatus(type, false));
+            }, 3000);
+        }
+        
+        // 查看下载任务
+        async function viewDownloadTasks() {
+            try {
+                const response = await fetch('/api/v1/rankings/download-tasks?limit=20&source=subscription');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const tasks = data.data.tasks || [];
+                    const total = data.data.total || 0;
+                    
+                    const allStatusElement = document.getElementById('all-subscriptions-status');
+                    allStatusElement.style.display = 'block';
+                    allStatusElement.className = 'test-result info';
+                    
+                    if (tasks.length === 0) {
+                        allStatusElement.innerHTML = `
+                            <div class="text-sm">
+                                <p>📝 暂无订阅下载任务</p>
+                                <p class="text-xs text-gray-400">可以点击"立即执行"来创建订阅任务</p>
+                            </div>
+                        `;
+                    } else {
+                        const statusCounts = {};
+                        tasks.forEach(task => {
+                            statusCounts[task.status] = (statusCounts[task.status] || 0) + 1;
+                        });
+                        
+                        const getStatusDisplay = (status) => {
+                            const statusMap = {
+                                'pending': '⏳ 等待中',
+                                'searching': '🔍 搜索中', 
+                                'found': '✅ 已找到',
+                                'started': '⚡ 已开始',
+                                'progress': '📥 下载中',
+                                'completed': '✅ 已完成',
+                                'failed': '❌ 失败',
+                                'cancelled': '⏹️ 已取消'
+                            };
+                            return statusMap[status] || status;
+                        };
+                        
+                        allStatusElement.innerHTML = `
+                            <div class="text-sm">
+                                <p><strong>📋 订阅任务状态 (${total}个)</strong></p>
+                                <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+                                    ${Object.entries(statusCounts).map(([status, count]) => 
+                                        `<p>${getStatusDisplay(status)}: ${count}个</p>`
+                                    ).join('')}
+                                </div>
+                                <div class="mt-3 space-y-1">
+                                    <p class="text-xs font-semibold">📋 最近任务：</p>
+                                    ${tasks.slice(0, 5).map(task => `
+                                        <p class="text-xs flex justify-between">
+                                            <span class="font-mono">${task.code}</span>
+                                            <span class="${task.status === 'completed' ? 'text-green-400' : task.status === 'failed' ? 'text-red-400' : 'text-yellow-400'}">
+                                                ${getStatusDisplay(task.status)}
+                                                ${task.progress > 0 ? ` (${Math.round(task.progress * 100)}%)` : ''}
+                                            </span>
+                                        </p>
+                                    `).join('')}
+                                    ${tasks.length > 5 ? `<p class="text-xs text-gray-400">...还有${tasks.length - 5}个任务</p>` : ''}
+                                </div>
+                                <div class="mt-3 flex gap-2">
+                                    <button onclick="viewDownloadTasks()" class="btn btn-xs btn-secondary">
+                                        <i class="fas fa-sync-alt"></i> 刷新
+                                    </button>
+                                    <button onclick="window.open('/downloads.html', '_blank')" class="btn btn-xs btn-info">
+                                        <i class="fas fa-external-link-alt"></i> 详细页面
+                                    </button>
+                                </div>
+                                <p class="mt-2 text-xs text-gray-400">更新时间: ${new Date().toLocaleString()}</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    throw new Error(data.error || '获取任务列表失败');
+                }
+            } catch (error) {
+                console.error('获取下载任务失败:', error);
+                const allStatusElement = document.getElementById('all-subscriptions-status');
+                allStatusElement.style.display = 'block';
+                allStatusElement.className = 'test-result error';
+                allStatusElement.innerHTML = `
+                    <div class="text-sm">
+                        <p>❌ 获取任务失败: ${error.message}</p>
+                        <button onclick="viewDownloadTasks()" class="btn btn-xs btn-secondary mt-2">
+                            <i class="fas fa-redo"></i> 重试
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        // 自动状态更新机制
+        let subscriptionStatusInterval = null;
+        
+        function startSubscriptionStatusUpdates() {
+            // 先停止之前的定时器
+            if (subscriptionStatusInterval) {
+                clearInterval(subscriptionStatusInterval);
+            }
+            
+            // 每60秒自动更新一次所有订阅状态（仅在可见时）
+            subscriptionStatusInterval = setInterval(() => {
+                const rankTypes = ['daily', 'weekly', 'monthly'];
+                rankTypes.forEach(rankType => {
+                    const statusElement = document.getElementById(`${rankType}-status`);
+                    if (statusElement && statusElement.style.display !== 'none') {
+                        getSubscriptionStatus(rankType, false);
+                    }
+                });
+            }, 60000); // 60秒
+        }
+        
+        function stopSubscriptionStatusUpdates() {
+            if (subscriptionStatusInterval) {
+                clearInterval(subscriptionStatusInterval);
+                subscriptionStatusInterval = null;
+            }
+        }
+        
+        // 页面可见性变化时控制更新
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopSubscriptionStatusUpdates();
+            } else {
+                // 页面重新可见时启动更新
+                const subscriptionSection = document.getElementById('subscription-section');
+                if (subscriptionSection && !subscriptionSection.classList.contains('hidden')) {
+                    startSubscriptionStatusUpdates();
+                }
+            }
         });
         
         // 返回顶部

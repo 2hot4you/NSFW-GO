@@ -188,10 +188,15 @@
         let localOnlyMode = false;
         let selectedMovies = new Set();
         let currentMovie = null;
+        let downloadTasks = new Map(); // 存储下载任务状态
+        let statusUpdateInterval = null; // 状态更新定时器
         
         // 页面加载完成
         document.addEventListener('DOMContentLoaded', function() {
             loadRankings('weekly');
+            
+            // 启动下载状态定时更新
+            startStatusUpdates();
             
             // 监听滚动
             window.addEventListener('scroll', () => {
@@ -202,6 +207,13 @@
                     backToTop.classList.add('hidden');
                 }
             });
+        });
+        
+        // 页面卸载时清理定时器
+        window.addEventListener('beforeunload', () => {
+            if (statusUpdateInterval) {
+                clearInterval(statusUpdateInterval);
+            }
         });
         
         // 加载排行榜
@@ -265,6 +277,7 @@
         function createRankCard(movie, rank) {
             const hasLocal = movie.local_exists || false;  // 使用API返回的local_exists字段
             const isSelected = selectedMovies.has(movie.code);
+            const task = downloadTasks.get(movie.code);
             
             return `
                 <div class="glass-card hover-scale relative ${isSelected ? 'ring-2 ring-primary' : ''}">
@@ -274,7 +287,7 @@
                     </div>
                     
                     <!-- 选择框（只有不在本地库的才显示） -->
-                    ${!hasLocal ? `
+                    ${!hasLocal && !task ? `
                         <div class="absolute top-2 right-2 z-10">
                             <input type="checkbox" 
                                    ${isSelected ? 'checked' : ''} 
@@ -295,11 +308,7 @@
                             
                             <!-- 状态标签 -->
                             <div class="absolute bottom-2 left-2 right-2 flex justify-between items-end">
-                                ${hasLocal ? `
-                                    <span class="badge badge-success">✅ 已在库中</span>
-                                ` : `
-                                    <span class="badge badge-warning">📥 可下载</span>
-                                `}
+                                ${getStatusBadge(hasLocal, task)}
                                 ${movie.is_hot ? `
                                     <span class="badge badge-danger">🔥 热门</span>
                                 ` : ''}
@@ -326,21 +335,112 @@
                                 ` : ''}
                             </div>
                             
+                            <!-- 下载进度条（如果有任务在进行中） -->
+                            ${task && task.status === 'progress' ? `
+                                <div class="mt-2">
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="bg-primary-gradient h-2 rounded-full transition-all duration-300" 
+                                             style="width: ${Math.round(task.progress * 100)}%"></div>
+                                    </div>
+                                    <p class="text-xs text-center mt-1">${Math.round(task.progress * 100)}%</p>
+                                </div>
+                            ` : ''}
+                            
                             <!-- 操作按钮 -->
-                            ${!hasLocal ? `
-                                <button onclick="event.stopPropagation(); downloadSingle('${movie.code}')" 
-                                        class="btn btn-primary btn-sm w-full mt-3">
-                                    <i class="fas fa-download"></i>
-                                    下载
-                                </button>
-                            ` : `
-                                <button class="btn btn-secondary btn-sm w-full mt-3" disabled>
-                                    ✅ 已在本地
-                                </button>
-                            `}
+                            ${getActionButton(hasLocal, task, movie.code)}
                         </div>
                     </div>
                 </div>
+            `;
+        }
+        
+        // 获取状态标签
+        function getStatusBadge(hasLocal, task) {
+            if (hasLocal) {
+                return '<span class="badge badge-success">✅ 已在库中</span>';
+            }
+            
+            if (task) {
+                switch (task.status) {
+                    case 'pending':
+                        return '<span class="badge badge-info">⏳ 等待中</span>';
+                    case 'searching':
+                        return '<span class="badge badge-info">🔍 搜索种子</span>';
+                    case 'found':
+                        return '<span class="badge badge-warning">📁 种子已找到</span>';
+                    case 'started':
+                        return '<span class="badge badge-primary">📥 下载中</span>';
+                    case 'progress':
+                        return '<span class="badge badge-primary">📥 下载中</span>';
+                    case 'completed':
+                        return '<span class="badge badge-success">✅ 已完成</span>';
+                    case 'failed':
+                        return '<span class="badge badge-error">❌ 失败</span>';
+                    case 'cancelled':
+                        return '<span class="badge badge-warning">⏹️ 已取消</span>';
+                    default:
+                        return '<span class="badge badge-warning">📥 可下载</span>';
+                }
+            }
+            
+            return '<span class="badge badge-warning">📥 可下载</span>';
+        }
+        
+        // 获取操作按钮
+        function getActionButton(hasLocal, task, code) {
+            if (hasLocal) {
+                return `
+                    <button class="btn btn-secondary btn-sm w-full mt-3" disabled>
+                        ✅ 已在本地
+                    </button>
+                `;
+            }
+            
+            if (task) {
+                switch (task.status) {
+                    case 'pending':
+                    case 'searching':
+                    case 'found':
+                    case 'started':
+                    case 'progress':
+                        return `
+                            <button onclick="event.stopPropagation(); cancelDownload('${code}')" 
+                                    class="btn btn-warning btn-sm w-full mt-3">
+                                <i class="fas fa-stop"></i>
+                                取消下载
+                            </button>
+                        `;
+                    case 'completed':
+                        return `
+                            <button class="btn btn-success btn-sm w-full mt-3" disabled>
+                                ✅ 下载完成
+                            </button>
+                        `;
+                    case 'failed':
+                        return `
+                            <button onclick="event.stopPropagation(); retryDownload('${code}')" 
+                                    class="btn btn-error btn-sm w-full mt-3">
+                                <i class="fas fa-redo"></i>
+                                重试
+                            </button>
+                        `;
+                    case 'cancelled':
+                        return `
+                            <button onclick="event.stopPropagation(); downloadSingle('${code}')" 
+                                    class="btn btn-primary btn-sm w-full mt-3">
+                                <i class="fas fa-download"></i>
+                                重新下载
+                            </button>
+                        `;
+                }
+            }
+            
+            return `
+                <button onclick="event.stopPropagation(); downloadSingle('${code}')" 
+                        class="btn btn-primary btn-sm w-full mt-3">
+                    <i class="fas fa-download"></i>
+                    下载
+                </button>
             `;
         }
         
@@ -444,91 +544,102 @@
             window.location.href = `/downloads.html?batch=${codes}`;
         }
         
-        // 单个下载 - 完整的下载流程
+        // 单个下载 - 使用新的排行榜下载API
         async function downloadSingle(code) {
             if (!code) return;
             
-            // 显示下载进度通知
-            components.showNotification('🔍 正在搜索种子...', 'info', 5000);
+            // 从排行榜中获取影片信息
+            const movie = allRankings.find(m => m.code === code);
+            
+            components.showNotification('🚀 正在启动下载任务...', 'info');
             
             try {
-                // 第一步：搜索种子
-                const searchResponse = await fetch(`/api/v1/torrents/search/code?code=${encodeURIComponent(code)}`);
-                const searchData = await searchResponse.json();
-                
-                if (!searchResponse.ok) {
-                    if (searchData.Code === 'EXISTS') {
-                        components.showNotification('ℹ️ 该影片已存在本地库', 'warning');
-                        return;
-                    }
-                    throw new Error(searchData.Message || '搜索种子失败');
-                }
-                
-                if (searchData.Code !== 'SUCCESS' || !searchData.Data.results || searchData.Data.results.length === 0) {
-                    components.showNotification('😅 未找到可用种子', 'warning');
-                    return;
-                }
-                
-                components.showNotification('✅ 搜索成功，选择最优种子...', 'success');
-                
-                // 选择最优种子（第一个，已按文件大小排序）
-                const bestTorrent = searchData.Data.results[0];
-                
-                // 确定使用哪个下载链接（优先磁力链接）
-                console.log('种子数据:', bestTorrent); // 调试用
-                
-                let downloadURI = '';
-                let linkType = '';
-                if (bestTorrent.magnetUri && bestTorrent.magnetUri.trim()) {
-                    downloadURI = bestTorrent.magnetUri;
-                    linkType = '磁力链接';
-                } else if (bestTorrent.link && bestTorrent.link.trim()) {
-                    downloadURI = bestTorrent.link;
-                    linkType = 'HTTP链接';
-                } else {
-                    components.showNotification('❌ 没有可用的下载链接', 'error');
-                    console.error('无下载链接:', bestTorrent);
-                    return;
-                }
-                
-                console.log(`正在使用${linkType}下载: ${bestTorrent.title} (${bestTorrent.sizeFormatted || bestTorrent.size})`);
-                
-                // 第二步：添加到下载器
-                components.showNotification(`📥 正在使用${linkType}添加到下载器...`, 'info');
-                
-                const downloadResponse = await fetch('/api/v1/torrents/download', {
+                const response = await fetch('/api/v1/rankings/download', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        magnet_uri: bestTorrent.magnetUri || '',
-                        download_uri: bestTorrent.link || '',
-                        link: downloadURI, // 兼容字段
                         code: code,
-                        title: bestTorrent.title,
-                        size: bestTorrent.size,
-                        tracker: bestTorrent.tracker
+                        title: movie?.title || code,
+                        source: 'manual',
+                        rank_type: currentRankType
                     })
                 });
                 
-                const downloadData = await downloadResponse.json();
+                const data = await response.json();
                 
-                if (!downloadResponse.ok || downloadData.Code !== 'SUCCESS') {
-                    throw new Error(downloadData.Message || '添加下载任务失败');
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || '启动下载任务失败');
                 }
                 
-                // 成功通知
-                components.showNotification(`🎉 ${code} 已添加到下载器！`, 'success', 8000);
+                // 任务创建成功，添加到本地状态
+                downloadTasks.set(code, {
+                    id: data.data.id,
+                    code: code,
+                    status: data.data.status,
+                    progress: data.data.progress || 0,
+                    error_msg: data.data.error_msg || ''
+                });
                 
-                // 显示 Telegram 通知状态
-                setTimeout(() => {
-                    components.showNotification('💬 已发送 Telegram 通知', 'info');
-                }, 1000);
+                // 重新渲染界面
+                renderRankings();
+                
+                components.showNotification('✅ 下载任务已启动，正在后台处理...', 'success');
                 
             } catch (error) {
                 console.error('下载失败:', error);
                 components.showNotification(`❌ 下载失败: ${error.message}`, 'error', 10000);
+            }
+        }
+        
+        // 取消下载
+        async function cancelDownload(code) {
+            const task = downloadTasks.get(code);
+            if (!task) return;
+            
+            try {
+                const response = await fetch(`/api/v1/rankings/download-tasks/${task.id}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    components.showNotification('⏹️ 任务已取消', 'info');
+                    downloadTasks.set(code, { ...task, status: 'cancelled' });
+                    renderRankings();
+                } else {
+                    throw new Error(data.error || '取消任务失败');
+                }
+            } catch (error) {
+                console.error('取消失败:', error);
+                components.showNotification(`❌ 取消失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 重试下载
+        async function retryDownload(code) {
+            const task = downloadTasks.get(code);
+            if (!task) return;
+            
+            try {
+                const response = await fetch(`/api/v1/rankings/download-tasks/${task.id}/retry`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    components.showNotification('🔄 任务已重新启动', 'info');
+                    downloadTasks.set(code, { ...task, status: 'pending', progress: 0, error_msg: '' });
+                    renderRankings();
+                } else {
+                    throw new Error(data.error || '重试任务失败');
+                }
+            } catch (error) {
+                console.error('重试失败:', error);
+                components.showNotification(`❌ 重试失败: ${error.message}`, 'error');
             }
         }
         
@@ -623,6 +734,73 @@
             
             document.getElementById('localCount').textContent = localCount;
             document.getElementById('downloadableCount').textContent = downloadableCount;
+        }
+        
+        // 启动状态更新定时器
+        function startStatusUpdates() {
+            // 清除现有定时器
+            if (statusUpdateInterval) {
+                clearInterval(statusUpdateInterval);
+            }
+            
+            // 立即执行一次状态更新
+            updateDownloadStatus();
+            
+            // 设置30秒定时更新
+            statusUpdateInterval = setInterval(updateDownloadStatus, 30000);
+        }
+        
+        // 更新下载状态
+        async function updateDownloadStatus() {
+            try {
+                // 获取所有下载任务
+                const response = await fetch('/api/v1/rankings/download-tasks?limit=100');
+                const data = await response.json();
+                
+                if (data.success && data.data.tasks) {
+                    let hasUpdates = false;
+                    
+                    data.data.tasks.forEach(task => {
+                        const existingTask = downloadTasks.get(task.code);
+                        
+                        // 检查状态是否发生变化
+                        if (!existingTask || existingTask.status !== task.status || existingTask.progress !== task.progress) {
+                            hasUpdates = true;
+                        }
+                        
+                        downloadTasks.set(task.code, {
+                            id: task.id,
+                            code: task.code,
+                            status: task.status,
+                            progress: task.progress || 0,
+                            error_msg: task.error_msg || ''
+                        });
+                    });
+                    
+                    // 如果有更新，重新渲染界面
+                    if (hasUpdates) {
+                        renderRankings();
+                        
+                        // 检查是否有新完成的任务
+                        const completedTasks = data.data.tasks.filter(task => task.status === 'completed');
+                        completedTasks.forEach(task => {
+                            if (!downloadTasks.has(task.code) || downloadTasks.get(task.code).status !== 'completed') {
+                                components.showNotification(`🎉 ${task.code} 下载完成！`, 'success', 5000);
+                            }
+                        });
+                        
+                        // 检查是否有新失败的任务
+                        const failedTasks = data.data.tasks.filter(task => task.status === 'failed');
+                        failedTasks.forEach(task => {
+                            if (!downloadTasks.has(task.code) || downloadTasks.get(task.code).status !== 'failed') {
+                                components.showNotification(`❌ ${task.code} 下载失败: ${task.error_msg}`, 'error', 8000);
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                console.warn('状态更新失败:', error);
+            }
         }
         
         // 返回顶部

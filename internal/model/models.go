@@ -279,6 +279,9 @@ func GetAllModels() []interface{} {
 		&Favorite{},
 		&WatchHistory{},
 		&Ranking{},
+		&RankingDownloadTask{},
+		&Subscription{},
+		&SubscriptionLimit{},
 	}
 }
 

@@ -161,6 +161,19 @@ func seedData(db *gorm.DB) error {
 		}
 	}
 
+	// 插入默认订阅配置
+	defaultSubscriptions := []model.Subscription{
+		{RankType: "daily", Enabled: false, HourlyLimit: 10, DailyLimit: 50},
+		{RankType: "weekly", Enabled: false, HourlyLimit: 10, DailyLimit: 50},
+		{RankType: "monthly", Enabled: false, HourlyLimit: 10, DailyLimit: 50},
+	}
+
+	for _, subscription := range defaultSubscriptions {
+		if err := db.FirstOrCreate(&subscription, model.Subscription{RankType: subscription.RankType}).Error; err != nil {
+			log.Printf("插入订阅配置失败: %s, 错误: %v", subscription.RankType, err)
+		}
+	}
+
 	log.Println("✓ 初始数据插入完成")
 	return nil
 }
