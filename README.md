@@ -1,6 +1,13 @@
 # NSFW-Go 智能成人影视库管理系统
 
-> 基于Go + Vue3的现代化JAV影片管理平台，支持本地影视库管理、JAVDb在线搜索、排行榜爬取和智能数据分析
+[![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat-square&logo=go)](https://golang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7+-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/2hot4you/NSFW-GO?style=flat-square&logo=github)](https://github.com/2hot4you/NSFW-GO)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docker.com/)
+
+> 🎬 基于Go + 原生JS的现代化JAV影片管理平台，支持本地影视库管理、JAVDb在线搜索、排行榜爬取和智能下载订阅
 
 ## 🎯 项目概述
 
