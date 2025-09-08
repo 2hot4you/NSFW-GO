@@ -23,6 +23,17 @@ func NewRankingHandler(rankingService *service.RankingService) *RankingHandler {
 }
 
 // GetRankings 获取排行榜
+// @Summary 获取排行榜列表
+// @Description 获取JAVDb排行榜数据，支持日榜、周榜、月榜
+// @Tags rankings
+// @Accept json
+// @Produce json
+// @Param type query string false "排行榜类型" default(daily) Enums(daily, weekly, monthly)
+// @Param limit query int false "数量限制" default(50)
+// @Success 200 {object} Response{data=[]model.Ranking} "排行榜列表"
+// @Failure 400 {object} ErrorResponse "参数错误"
+// @Failure 500 {object} ErrorResponse "获取失败"
+// @Router /rankings [get]
 func (h *RankingHandler) GetRankings(c *gin.Context) {
 	// 兼容 type 和 period 参数
 	rankType := c.DefaultQuery("type", "")

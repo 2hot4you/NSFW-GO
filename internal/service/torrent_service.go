@@ -200,6 +200,48 @@ func (s *TorrentService) SearchTorrentsForCode(code string) ([]JackettResult, er
 	return s.SearchTorrents(code)
 }
 
+// GetBestTorrentForCode 为番号获取最佳种子（最大文件）
+func (s *TorrentService) GetBestTorrentForCode(code string) (*JackettResult, error) {
+	results, err := s.SearchTorrentsForCode(code)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(results) == 0 {
+		return nil, fmt.Errorf("未找到番号 %s 的种子资源", code)
+	}
+
+	// 返回第一个结果（已按文件大小从大到小排序）
+	bestTorrent := &results[0]
+	
+	fmt.Printf("🎯 已为番号 %s 选择最佳种子:\n", code)
+	fmt.Printf("   标题: %s\n", bestTorrent.Title)
+	fmt.Printf("   大小: %s (%d bytes)\n", bestTorrent.SizeFormatted, bestTorrent.Size)
+	fmt.Printf("   做种: %d 人\n", bestTorrent.Seeders)
+	fmt.Printf("   索引: %s\n", bestTorrent.Tracker)
+	
+	return bestTorrent, nil
+}
+
+// DownloadBestTorrentForCode 自动为番号下载最佳种子（最大文件）
+func (s *TorrentService) DownloadBestTorrentForCode(code string) error {
+	// 获取最佳种子
+	bestTorrent, err := s.GetBestTorrentForCode(code)
+	if err != nil {
+		return err
+	}
+
+	// 下载最佳种子
+	return s.DownloadTorrentWithNotification(
+		bestTorrent.MagnetURI,
+		bestTorrent.Link,
+		code,
+		bestTorrent.Title,
+		bestTorrent.Tracker,
+		bestTorrent.Size,
+	)
+}
+
 // DownloadTorrentWithNotification 带通知的完整下载流程
 func (s *TorrentService) DownloadTorrentWithNotification(magnetURI, downloadURI, code, title, tracker string, size int64) error {
 	// 优先使用磁力链接，如果没有则使用HTTP下载链接

@@ -59,6 +59,17 @@ type JAVDbActressMovieResponse struct {
 }
 
 // SearchJAVDb 执行JAVDb搜索
+// @Summary JAVDb在线搜索
+// @Description 在JAVDb网站搜索影片信息，支持番号和标题搜索
+// @Tags search
+// @Accept json
+// @Produce json
+// @Param q query string true "搜索关键词"
+// @Param type query string false "搜索类型" default(movie) Enums(movie, actress)
+// @Success 200 {object} Response{data=JAVDbMovieSearchResponse} "搜索结果"
+// @Failure 400 {object} ErrorResponse "参数错误"
+// @Failure 500 {object} ErrorResponse "搜索失败"
+// @Router /search/javdb [get]
 func (h *JAVDbSearchHandler) SearchJAVDb(c *gin.Context) {
 	var req JAVDbSearchRequest
 	if err := c.ShouldBindQuery(&req); err != nil {

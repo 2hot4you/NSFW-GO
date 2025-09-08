@@ -45,6 +45,14 @@ func NewLocalHandler(localMovieRepo repo.LocalMovieRepository, scannerService *s
 }
 
 // ScanLocalMovies 触发手动扫描本地影片库
+// @Summary 手动扫描本地影片库
+// @Description 触发一次完整的本地影片库扫描，更新数据库中的影片信息
+// @Tags local
+// @Accept json
+// @Produce json
+// @Success 200 {object} Response "扫描成功"
+// @Failure 500 {object} ErrorResponse "扫描失败"
+// @Router /local/scan [post]
 func (h *LocalHandler) ScanLocalMovies(c *gin.Context) {
 	err := h.scannerService.ForceRescan()
 	if err != nil {
@@ -62,6 +70,17 @@ func (h *LocalHandler) ScanLocalMovies(c *gin.Context) {
 }
 
 // GetLocalMovies 获取本地影片列表（从数据库读取）
+// @Summary 获取本地影片列表
+// @Description 分页获取本地影片库中的影片列表，支持按女优筛选
+// @Tags local
+// @Accept json
+// @Produce json
+// @Param page query int false "页码" default(1)
+// @Param limit query int false "每页数量" default(100)
+// @Param actress query string false "女优筛选"
+// @Success 200 {object} ListResponse{items=[]LocalMovie} "影片列表"
+// @Failure 500 {object} ErrorResponse "获取失败"
+// @Router /local/movies [get]
 func (h *LocalHandler) GetLocalMovies(c *gin.Context) {
 	// 获取分页参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -118,6 +137,14 @@ func (h *LocalHandler) GetLocalMovies(c *gin.Context) {
 }
 
 // GetLocalMovieStats 获取本地影片统计信息
+// @Summary 获取本地影片统计
+// @Description 获取本地影片库的统计信息，包括总数、女优数量等
+// @Tags local
+// @Accept json
+// @Produce json
+// @Success 200 {object} Response "统计信息"
+// @Failure 500 {object} ErrorResponse "获取失败"
+// @Router /local/stats [get]
 func (h *LocalHandler) GetLocalMovieStats(c *gin.Context) {
 	// 获取总数
 	total, err := h.localMovieRepo.Count()

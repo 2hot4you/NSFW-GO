@@ -18,6 +18,7 @@ make run             # 运行构建后的应用
 make test            # 运行测试
 make lint            # 运行 golangci-lint（自动安装）
 make fmt             # 格式化代码（gofmt + goimports）
+make help            # 显示所有可用命令帮助
 ```
 
 ### 开发模式热重载
@@ -46,11 +47,13 @@ make status         # 检查项目状态
 
 ### 代码质量
 ```bash
-make lint           # 运行 golangci-lint（自动安装）
-make fmt            # 格式化代码（gofmt + goimports）
-make test           # 运行所有测试
-make bench          # 运行基准测试
-make install-tools  # 安装开发工具（air, golangci-lint, goimports）
+make lint            # 运行 golangci-lint（自动安装）
+make fmt             # 格式化代码（gofmt + goimports）
+make test            # 运行所有测试
+make bench           # 运行基准测试
+make install-tools   # 安装开发工具（air, golangci-lint, goimports）
+make docs            # 生成 Swagger API 文档
+make info            # 显示项目信息（版本、Git提交等）
 ```
 
 ### 单独测试命令
@@ -253,6 +256,12 @@ Makefile 自动安装所需工具：
 - 结构化输出的全面日志记录
 - 监控用的健康检查端点
 - 实时统计和状态指示器
+
+### 发布和部署工具
+- `make release`: 构建多平台发布版本（Linux/Windows/macOS）
+- `make docker`: 构建 Docker 镜像
+- `make clean`: 清理构建文件
+- `make clean-all`: 清理所有文件和容器
 
 ## 关键开发说明
 

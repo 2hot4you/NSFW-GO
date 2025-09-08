@@ -21,6 +21,16 @@ func NewTorrentHandler(torrentService *service.TorrentService) *TorrentHandler {
 }
 
 // SearchTorrents 搜索种子
+// @Summary 搜索种子文件
+// @Description 通过Jackett搜索种子文件，支持任意关键词搜索
+// @Tags torrents
+// @Accept json
+// @Produce json
+// @Param q query string true "搜索关键词"
+// @Success 200 {object} Response "搜索结果"
+// @Failure 400 {object} ErrorResponse "参数错误"
+// @Failure 500 {object} ErrorResponse "搜索失败"
+// @Router /torrents/search [get]
 func (h *TorrentHandler) SearchTorrents(c *gin.Context) {
 	keyword := c.Query("q")
 	if keyword == "" {
@@ -234,5 +244,133 @@ func (h *TorrentHandler) GetDownloadStatus(c *gin.Context) {
 		Code:    "SUCCESS",
 		Message: "获取下载状态成功",
 		Data:    stats,
+	})
+}
+
+// GetBestTorrentForCode 获取番号最佳种子
+// @Summary 获取番号最佳种子
+// @Description 搜索指定番号的种子并返回最大文件大小的种子（保证清晰度）
+// @Tags torrents
+// @Accept json
+// @Produce json
+// @Param code query string true "番号"
+// @Success 200 {object} Response "最佳种子信息"
+// @Failure 400 {object} ErrorResponse "参数错误"
+// @Failure 404 {object} ErrorResponse "未找到种子"
+// @Failure 409 {object} ErrorResponse "番号已存在"
+// @Failure 500 {object} ErrorResponse "搜索失败"
+// @Router /torrents/best [get]
+func (h *TorrentHandler) GetBestTorrentForCode(c *gin.Context) {
+	code := c.Query("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, Response{
+			Code:    "ERROR",
+			Message: "番号不能为空",
+		})
+		return
+	}
+
+	bestTorrent, err := h.torrentService.GetBestTorrentForCode(code)
+	if err != nil {
+		// 如果是已存在的错误，返回特殊状态
+		if strings.Contains(err.Error(), "已存在于本地影视库") {
+			c.JSON(http.StatusConflict, Response{
+				Code:    "EXISTS",
+				Message: err.Error(),
+				Data: map[string]interface{}{
+					"code":   code,
+					"exists": true,
+				},
+			})
+			return
+		}
+
+		// 未找到种子
+		if strings.Contains(err.Error(), "未找到") {
+			c.JSON(http.StatusNotFound, Response{
+				Code:    "NOT_FOUND",
+				Message: err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, Response{
+			Code:    "ERROR",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code:    "SUCCESS",
+		Message: "获取最佳种子成功",
+		Data: map[string]interface{}{
+			"code":        code,
+			"best_torrent": bestTorrent,
+		},
+	})
+}
+
+// DownloadBestTorrentForCode 下载番号最佳种子
+// @Summary 下载番号最佳种子
+// @Description 自动为指定番号搜索并下载最大文件大小的种子（保证清晰度）
+// @Tags torrents
+// @Accept json
+// @Produce json
+// @Param code formData string true "番号"
+// @Success 200 {object} Response "下载任务添加成功"
+// @Failure 400 {object} ErrorResponse "参数错误"
+// @Failure 404 {object} ErrorResponse "未找到种子"
+// @Failure 409 {object} ErrorResponse "番号已存在"
+// @Failure 500 {object} ErrorResponse "下载失败"
+// @Router /torrents/download/best [post]
+func (h *TorrentHandler) DownloadBestTorrentForCode(c *gin.Context) {
+	code := c.PostForm("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, Response{
+			Code:    "ERROR",
+			Message: "番号不能为空",
+		})
+		return
+	}
+
+	err := h.torrentService.DownloadBestTorrentForCode(code)
+	if err != nil {
+		// 如果是已存在的错误，返回特殊状态
+		if strings.Contains(err.Error(), "已存在于本地影视库") {
+			c.JSON(http.StatusConflict, Response{
+				Code:    "EXISTS",
+				Message: err.Error(),
+				Data: map[string]interface{}{
+					"code":   code,
+					"exists": true,
+				},
+			})
+			return
+		}
+
+		// 未找到种子
+		if strings.Contains(err.Error(), "未找到") {
+			c.JSON(http.StatusNotFound, Response{
+				Code:    "NOT_FOUND",
+				Message: err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, Response{
+			Code:    "ERROR",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code:    "SUCCESS",
+		Message: "最佳种子下载任务添加成功",
+		Data: map[string]interface{}{
+			"code": code,
+			"note": "已自动选择最大文件进行下载以保证清晰度",
+		},
 	})
 }

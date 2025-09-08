@@ -291,7 +291,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			{
 				torrents.GET("/search", torrentHandler.SearchTorrents)             // 基础搜索（支持任意关键词）
 				torrents.GET("/search/code", torrentHandler.SearchTorrentsForCode) // 按番号搜索（检查本地是否存在）
+				torrents.GET("/best", torrentHandler.GetBestTorrentForCode)        // 获取番号最佳种子（最大文件）
 				torrents.POST("/download", torrentHandler.DownloadTorrent)         // 下载种子
+				torrents.POST("/download/best", torrentHandler.DownloadBestTorrentForCode) // 下载番号最佳种子
 				torrents.GET("/list", torrentHandler.GetTorrentList)               // 获取下载列表
 				torrents.GET("/status", torrentHandler.GetDownloadStatus)          // 获取下载状态统计
 			}
@@ -318,7 +320,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	r.StaticFile("/favicon.ico", "./web/dist/favicon.ico")
 
 	// Swagger 文档路由（必须在 NoRoute 之前注册）
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	url := ginSwagger.URL("doc.json") // 使用相对路径，与Swagger UI位于同一路径下
+	swaggerGroup := r.Group("/swagger")
+	swaggerGroup.GET("/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 	log.Printf("📚 Swagger 文档: http://localhost:8080/swagger/index.html")
 
 	// 处理前端路由（SPA）- 只对非API路径生效

@@ -29,6 +29,21 @@ definitions:
       message:
         type: string
     type: object
+  handlers.JAVDbMovieSearchResponse:
+    properties:
+      code:
+        type: string
+      cover_url:
+        type: string
+      detail_url:
+        type: string
+      rating:
+        type: number
+      release_date:
+        type: string
+      title:
+        type: string
+    type: object
   handlers.ListResponse:
     properties:
       items: {}
@@ -40,6 +55,29 @@ definitions:
         type: integer
       total_pages:
         type: integer
+    type: object
+  handlers.LocalMovie:
+    properties:
+      actress:
+        type: string
+      code:
+        type: string
+      fanart_path:
+        type: string
+      fanart_url:
+        type: string
+      format:
+        type: string
+      has_fanart:
+        type: boolean
+      modified:
+        type: string
+      path:
+        type: string
+      size:
+        type: integer
+      title:
+        type: string
     type: object
   handlers.Response:
     properties:
@@ -206,6 +244,36 @@ definitions:
         items:
           $ref: '#/definitions/model.WatchHistory'
         type: array
+    type: object
+  model.Ranking:
+    properties:
+      code:
+        type: string
+      cover_url:
+        type: string
+      crawled_at:
+        description: 爬取时间
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_checked:
+        description: 最后检查时间
+        type: string
+      local_exists:
+        description: 是否在本地存在
+        type: boolean
+      position:
+        description: 排名位置
+        type: integer
+      rank_type:
+        description: daily, weekly, monthly
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
     type: object
   model.Series:
     properties:
@@ -598,4 +666,199 @@ paths:
       summary: 搜索影片
       tags:
       - movies
+  /local/movies:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取本地影片库中的影片列表，支持按女优筛选
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 100
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      - description: 女优筛选
+        in: query
+        name: actress
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 影片列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.ListResponse'
+            - properties:
+                items:
+                  items:
+                    $ref: '#/definitions/handlers.LocalMovie'
+                  type: array
+              type: object
+        "500":
+          description: 获取失败
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: 获取本地影片列表
+      tags:
+      - local
+  /local/scan:
+    post:
+      consumes:
+      - application/json
+      description: 触发一次完整的本地影片库扫描，更新数据库中的影片信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 扫描成功
+          schema:
+            $ref: '#/definitions/handlers.Response'
+        "500":
+          description: 扫描失败
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: 手动扫描本地影片库
+      tags:
+      - local
+  /local/stats:
+    get:
+      consumes:
+      - application/json
+      description: 获取本地影片库的统计信息，包括总数、女优数量等
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 统计信息
+          schema:
+            $ref: '#/definitions/handlers.Response'
+        "500":
+          description: 获取失败
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: 获取本地影片统计
+      tags:
+      - local
+  /rankings:
+    get:
+      consumes:
+      - application/json
+      description: 获取JAVDb排行榜数据，支持日榜、周榜、月榜
+      parameters:
+      - default: daily
+        description: 排行榜类型
+        enum:
+        - daily
+        - weekly
+        - monthly
+        in: query
+        name: type
+        type: string
+      - default: 50
+        description: 数量限制
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 排行榜列表
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Ranking'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 获取失败
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: 获取排行榜列表
+      tags:
+      - rankings
+  /search/javdb:
+    get:
+      consumes:
+      - application/json
+      description: 在JAVDb网站搜索影片信息，支持番号和标题搜索
+      parameters:
+      - description: 搜索关键词
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: movie
+        description: 搜索类型
+        enum:
+        - movie
+        - actress
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 搜索结果
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handlers.JAVDbMovieSearchResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 搜索失败
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: JAVDb在线搜索
+      tags:
+      - search
+  /torrents/search:
+    get:
+      consumes:
+      - application/json
+      description: 通过Jackett搜索种子文件，支持任意关键词搜索
+      parameters:
+      - description: 搜索关键词
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 搜索结果
+          schema:
+            $ref: '#/definitions/handlers.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: 搜索失败
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: 搜索种子文件
+      tags:
+      - torrents
 swagger: "2.0"
