@@ -26,6 +26,7 @@ func NewRankingDownloadHandler(downloadService *service.RankingDownloadService) 
 type StartDownloadRequest struct {
 	Code     string `json:"code" binding:"required"`
 	Title    string `json:"title"`
+	CoverURL string `json:"cover_url"`
 	Source   string `json:"source"`
 	RankType string `json:"rank_type"`
 }
@@ -49,7 +50,7 @@ func (h *RankingDownloadHandler) StartDownload(c *gin.Context) {
 		req.RankType = model.RankTypeDaily
 	}
 
-	task, err := h.downloadService.StartDownloadTask(req.Code, req.Title, req.Source, req.RankType)
+	task, err := h.downloadService.StartDownloadTask(req.Code, req.Title, req.CoverURL, req.Source, req.RankType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

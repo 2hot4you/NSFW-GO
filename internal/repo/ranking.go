@@ -17,6 +17,7 @@ type RankingRepository interface {
 	GetPendingCheck(limit int) ([]*model.Ranking, error)
 	UpdateLocalExists(id uint, exists bool) error
 	GetByCode(code string) (*model.Ranking, error)
+	GetByCodeAndType(code, rankType string) (*model.Ranking, error)
 	Count() (int64, error)
 	Search(query string, offset, limit int) ([]*model.Ranking, int64, error)
 	SearchByCode(code string, offset, limit int) ([]*model.Ranking, int64, error)
@@ -111,6 +112,18 @@ func (r *rankingRepository) UpdateLocalExists(id uint, exists bool) error {
 func (r *rankingRepository) GetByCode(code string) (*model.Ranking, error) {
 	var ranking model.Ranking
 	err := r.db.Where("code = ?", code).First(&ranking).Error
+	if err != nil {
+		return nil, err
+	}
+	return &ranking, nil
+}
+
+// GetByCodeAndType 根据番号和排行榜类型获取记录
+func (r *rankingRepository) GetByCodeAndType(code, rankType string) (*model.Ranking, error) {
+	var ranking model.Ranking
+	err := r.db.Where("code = ? AND rank_type = ?", code, rankType).
+		Order("crawled_at DESC").
+		First(&ranking).Error
 	if err != nil {
 		return nil, err
 	}

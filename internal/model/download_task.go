@@ -8,7 +8,8 @@ import (
 type RankingDownloadTask struct {
 	BaseModel
 	Code         string    `gorm:"size:50;not null;uniqueIndex" json:"code"`        // 影片番号
-	Title        string    `gorm:"size:500" json:"title"`                           // 影片标题  
+	Title        string    `gorm:"size:500" json:"title"`                           // 影片标题
+	CoverURL     string    `gorm:"size:2000" json:"cover_url"`                      // 封面图片URL
 	Status       string    `gorm:"size:20;not null;default:'pending'" json:"status"` // 下载状态
 	TorrentURL   string    `gorm:"size:2000" json:"torrent_url"`                    // 种子链接
 	TorrentHash  string    `gorm:"size:100" json:"torrent_hash"`                    // 种子哈希

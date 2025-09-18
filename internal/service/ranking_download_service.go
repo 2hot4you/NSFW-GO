@@ -3,7 +3,6 @@ package service
 import (
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"nsfw-go/internal/model"
@@ -19,6 +18,7 @@ type RankingDownloadService struct {
 	localMovieRepo   repo.LocalMovieRepository
 	torrentService   *TorrentService
 	telegramService  *TelegramService
+	logService       *LogService
 }
 
 // NewRankingDownloadService 创建排行榜下载服务
@@ -29,6 +29,7 @@ func NewRankingDownloadService(
 	localMovieRepo repo.LocalMovieRepository,
 	torrentService *TorrentService,
 	telegramService *TelegramService,
+	logService *LogService,
 ) *RankingDownloadService {
 	return &RankingDownloadService{
 		taskRepo:         taskRepo,
@@ -37,11 +38,12 @@ func NewRankingDownloadService(
 		localMovieRepo:   localMovieRepo,
 		torrentService:   torrentService,
 		telegramService:  telegramService,
+		logService:       logService,
 	}
 }
 
 // StartDownloadTask 开始下载任务
-func (s *RankingDownloadService) StartDownloadTask(code, title, source, rankType string) (*model.RankingDownloadTask, error) {
+func (s *RankingDownloadService) StartDownloadTask(code, title, coverURL, source, rankType string) (*model.RankingDownloadTask, error) {
 	// 检查是否已经在本地库中
 	if localMovie, _ := s.localMovieRepo.SearchByCode(code); localMovie != nil {
 		return nil, fmt.Errorf("影片 %s 已在本地库中", code)
@@ -55,13 +57,15 @@ func (s *RankingDownloadService) StartDownloadTask(code, title, source, rankType
 	// 检查是否有历史任务（现在会正确排除软删除记录）
 	if historyTask, _ := s.taskRepo.GetByCode(code); historyTask != nil {
 		// 如果历史任务是失败/取消状态，允许重新创建
-		if historyTask.Status == model.RankingDownloadStatusFailed || 
+		if historyTask.Status == model.RankingDownloadStatusFailed ||
 		   historyTask.Status == model.RankingDownloadStatusCancelled {
-			// 软删除历史任务，为新任务让路
-			if err := s.taskRepo.Delete(historyTask.ID); err != nil {
+			// 硬删除历史任务，避免唯一约束冲突
+			if err := s.taskRepo.HardDelete(historyTask.ID); err != nil {
 				return nil, fmt.Errorf("清理历史任务失败: %v", err)
 			}
-			log.Printf("[下载服务] 清理历史失败任务: %s (状态: %s)", code, historyTask.Status)
+			if s.logService != nil {
+				s.logService.LogInfo("torrent", "download-service", fmt.Sprintf("清理历史失败任务: %s (状态: %s)", code, historyTask.Status))
+			}
 		} else {
 			// 如果是已完成/进行中任务，返回现有任务或错误信息
 			if historyTask.Status == model.RankingDownloadStatusCompleted {
@@ -78,15 +82,20 @@ func (s *RankingDownloadService) StartDownloadTask(code, title, source, rankType
 		Status:   model.RankingDownloadStatusPending,
 		Source:   source,
 		RankType: rankType,
+		CoverURL: coverURL, // 保存传递的封面URL
 	}
 	
 	if err := s.taskRepo.Create(task); err != nil {
 		return nil, fmt.Errorf("创建下载任务失败: %v", err)
 	}
-	
+
+	if s.logService != nil {
+		s.logService.LogInfo("torrent", "download-service", fmt.Sprintf("创建下载任务: %s (%s)", code, title))
+	}
+
 	// 异步开始下载流程
 	go s.executeDownload(task)
-	
+
 	return task, nil
 }
 
@@ -96,16 +105,18 @@ func (s *RankingDownloadService) executeDownload(task *model.RankingDownloadTask
 	task.Status = model.RankingDownloadStatusSearching
 	task.StartedAt = &[]time.Time{time.Now()}[0]
 	s.taskRepo.Update(task)
-	
+
 	// 搜索种子
-	log.Printf("[下载服务] 开始搜索种子: %s", task.Code)
-	
+	if s.logService != nil {
+		s.logService.LogInfo("torrent", "download-service", fmt.Sprintf("开始搜索种子: %s", task.Code))
+	}
+
 	torrents, err := s.torrentService.SearchTorrentsForCode(task.Code)
 	if err != nil || len(torrents) == 0 {
 		s.markTaskFailed(task, "未找到可用种子")
 		return
 	}
-	
+
 	// 选择最优种子（第一个，已按优先级排序）
 	bestTorrent := torrents[0]
 	task.TorrentURL = bestTorrent.Link
@@ -113,26 +124,47 @@ func (s *RankingDownloadService) executeDownload(task *model.RankingDownloadTask
 	task.FileSize = int64(bestTorrent.Size)
 	task.Status = model.RankingDownloadStatusFound
 	s.taskRepo.Update(task)
-	
-	log.Printf("[下载服务] 找到种子: %s (%s)", task.Code, bestTorrent.SizeFormatted)
-	
+
+	if s.logService != nil {
+		s.logService.LogInfo("torrent", "download-service", fmt.Sprintf("找到种子: %s (%s)", task.Code, bestTorrent.SizeFormatted))
+	}
+
 	// 添加到 qBittorrent
 	err = s.torrentService.DownloadTorrent(bestTorrent.Link)
 	if err != nil {
 		s.markTaskFailed(task, fmt.Sprintf("添加到下载器失败: %v", err))
 		return
 	}
-	
+
 	task.Status = model.RankingDownloadStatusStarted
 	s.taskRepo.Update(task)
-	
-	log.Printf("[下载服务] 已添加到下载器: %s", task.Code)
-	
-	// 发送通知
+
+	if s.logService != nil {
+		s.logService.LogInfo("torrent", "download-service", fmt.Sprintf("已添加到下载器: %s", task.Code))
+	}
+
+	// 获取封面图片URL（优先使用任务中保存的，否则从排行榜获取）
+	var coverURL string = task.CoverURL
+	if coverURL == "" && task.RankType != "" {
+		if ranking, err := s.rankingRepo.GetByCodeAndType(task.Code, task.RankType); err == nil && ranking != nil {
+			coverURL = ranking.CoverURL
+		}
+	}
+
+	// 发送增强的通知
 	if s.telegramService != nil {
-		message := fmt.Sprintf("🚀 开始下载: %s\n📁 %s\n💾 %s", 
-			task.Code, task.Title, bestTorrent.SizeFormatted)
-		s.telegramService.sendMessage(message)
+		err := s.telegramService.SendDownloadNotification(
+			task.Code,
+			task.Title,
+			coverURL,
+			bestTorrent.SizeFormatted,
+			bestTorrent.Tracker,
+		)
+		if err != nil {
+			if s.logService != nil {
+				s.logService.LogWarn("torrent", "download-service", fmt.Sprintf("Telegram通知发送失败: %v", err))
+			}
+		}
 	}
 }
 
@@ -142,14 +174,23 @@ func (s *RankingDownloadService) markTaskFailed(task *model.RankingDownloadTask,
 	task.ErrorMsg = errorMsg
 	task.CompletedAt = &[]time.Time{time.Now()}[0]
 	s.taskRepo.Update(task)
-	
-	log.Printf("[下载服务] 任务失败: %s - %s", task.Code, errorMsg)
-	
-	// 发送失败通知
+
+	if s.logService != nil {
+		s.logService.LogError("torrent", "download-service", fmt.Sprintf("任务失败: %s - %s", task.Code, errorMsg))
+	}
+
+	// 发送增强的失败通知
 	if s.telegramService != nil {
-		message := fmt.Sprintf("❌ 下载失败: %s\n📁 %s\n🚫 %s", 
-			task.Code, task.Title, errorMsg)
-		s.telegramService.sendMessage(message)
+		err := s.telegramService.SendDownloadErrorNotification(
+			task.Code,
+			task.Title,
+			errorMsg,
+		)
+		if err != nil {
+			if s.logService != nil {
+				s.logService.LogWarn("torrent", "download-service", fmt.Sprintf("Telegram失败通知发送失败: %v", err))
+			}
+		}
 	}
 }
 
@@ -226,12 +267,20 @@ func (s *RankingDownloadService) UpdateTaskProgress(code string, progress float6
 	if progress >= 1.0 {
 		task.Status = model.RankingDownloadStatusCompleted
 		task.CompletedAt = &[]time.Time{time.Now()}[0]
-		
-		// 发送完成通知
+
+		// 发送增强的完成通知
 		if s.telegramService != nil {
-			message := fmt.Sprintf("✅ 下载完成: %s\n📁 %s\n🎉 已保存到本地库", 
-				task.Code, task.Title)
-			s.telegramService.sendMessage(message)
+			err := s.telegramService.SendDownloadCompleteNotification(
+				task.Code,
+				task.Title,
+				"", // 暂时为空，可以后续添加文件路径获取逻辑
+				task.FileSize,
+			)
+			if err != nil {
+				if s.logService != nil {
+					s.logService.LogWarn("torrent", "download-service", fmt.Sprintf("Telegram完成通知发送失败: %v", err))
+				}
+			}
 		}
 	} else if progress > 0 {
 		task.Status = model.RankingDownloadStatusProgress
@@ -331,9 +380,11 @@ func (s *RankingDownloadService) ExecuteSubscriptionDownload(rankType string) er
 		}
 		
 		// 开始下载任务
-		_, err := s.StartDownloadTask(ranking.Code, ranking.Title, model.DownloadSourceSubscription, rankType)
+		_, err := s.StartDownloadTask(ranking.Code, ranking.Title, ranking.CoverURL, model.DownloadSourceSubscription, rankType)
 		if err != nil {
-			log.Printf("[订阅下载] 启动任务失败 %s: %v", ranking.Code, err)
+			if s.logService != nil {
+				s.logService.LogError("torrent", "subscription-download", fmt.Sprintf("启动任务失败 %s: %v", ranking.Code, err))
+			}
 			continue
 		}
 		
@@ -350,13 +401,22 @@ func (s *RankingDownloadService) ExecuteSubscriptionDownload(rankType string) er
 	subscription.TotalDownloads += downloadCount
 	s.subscriptionRepo.Update(subscription)
 	
-	log.Printf("[订阅下载] %s 执行完成，启动了 %d 个下载任务", rankType, downloadCount)
+	if s.logService != nil {
+		s.logService.LogInfo("torrent", "subscription-download", fmt.Sprintf("%s 执行完成，启动了 %d 个下载任务", rankType, downloadCount))
+	}
 	
-	// 发送通知
+	// 发送订阅通知
 	if s.telegramService != nil && downloadCount > 0 {
-		message := fmt.Sprintf("📋 订阅下载完成\n📊 %s 榜单\n🚀 启动了 %d 个下载任务", 
-			rankType, downloadCount)
-		s.telegramService.sendMessage(message)
+		err := s.telegramService.SendSubscriptionNotification(
+			rankType,
+			downloadCount,
+			downloadCount, // 假设所有任务都成功启动，可以根据实际情况调整
+		)
+		if err != nil {
+			if s.logService != nil {
+				s.logService.LogWarn("torrent", "subscription-download", fmt.Sprintf("Telegram通知发送失败: %v", err))
+			}
+		}
 	}
 	
 	return nil

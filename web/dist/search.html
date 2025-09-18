@@ -149,11 +149,181 @@
     <script src="static/js/components.js"></script>
     <script src="static/js/modern-nav.js"></script>
     <script>
+        // 初始化组件（components 已在 components.js 中定义）
+
         let currentTab = 'local';
         let localResults = [];
         let onlineResults = [];
         let currentPage = 1;
         let isLoading = false;
+
+        // 全局函数定义（必须在页面加载前定义，供onclick使用）
+
+        // 快速搜索
+        function quickSearch(keyword) {
+            document.getElementById('searchInput').value = keyword;
+            performSearch();
+        }
+
+        // 执行搜索
+        async function performSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                components.showNotification('😅 请输入搜索关键词', 'warning');
+                return;
+            }
+
+            const searchLocal = document.getElementById('searchLocal').checked;
+            const searchOnline = document.getElementById('searchOnline').checked;
+
+            if (!searchLocal && !searchOnline) {
+                components.showNotification('😅 请至少选择一个搜索范围', 'warning');
+                return;
+            }
+
+            try {
+                // 重置结果
+                localResults = [];
+                onlineResults = [];
+                currentPage = 1;
+
+                // 显示加载状态
+                const resultsContainer = document.getElementById('searchResults');
+                resultsContainer.innerHTML = components.createLoadingState('🔍 正在搜索...');
+
+                // 执行搜索
+                const promises = [];
+                if (searchLocal) {
+                    promises.push(searchLocalMovies(query));
+                }
+                if (searchOnline) {
+                    promises.push(searchOnlineMovies(query));
+                }
+
+                await Promise.all(promises);
+
+                // 显示第一个有结果的标签
+                if (localResults.length > 0) {
+                    switchTab('local');
+                } else if (onlineResults.length > 0) {
+                    switchTab('online');
+                } else {
+                    resultsContainer.innerHTML = components.createEmptyState(
+                        '😔 没有找到相关影片',
+                        'fa-film',
+                        {
+                            label: '重新搜索',
+                            icon: 'fas fa-search',
+                            onClick: 'document.getElementById("searchInput").focus()'
+                        }
+                    );
+                }
+
+                // 更新计数
+                updateCounts();
+            } catch (error) {
+                console.error('搜索失败:', error);
+                components.showNotification('😅 搜索失败，请重试', 'error');
+                const resultsContainer = document.getElementById('searchResults');
+                resultsContainer.innerHTML = components.createEmptyState(
+                    '😔 搜索失败',
+                    'fa-exclamation-triangle',
+                    {
+                        label: '重新搜索',
+                        icon: 'fas fa-search',
+                        onClick: 'performSearch()'
+                    }
+                );
+            }
+        }
+
+        // 切换标签
+        function switchTab(tab) {
+            currentTab = tab;
+            currentPage = 1;
+
+            // 更新标签样式
+            const localTab = document.getElementById('localTab');
+            const onlineTab = document.getElementById('onlineTab');
+
+            if (tab === 'local') {
+                localTab.className = 'btn btn-primary';
+                onlineTab.className = 'btn btn-secondary';
+                displayResults(localResults);
+            } else {
+                localTab.className = 'btn btn-secondary';
+                onlineTab.className = 'btn btn-primary';
+                displayResults(onlineResults);
+            }
+        }
+
+        // 查看影片详情
+        function viewMovieDetail(code) {
+            if (currentTab === 'local') {
+                window.location.href = `/local-movies.html?code=${code}`;
+            } else {
+                window.open(`https://javdb.com/search?q=${code}`, '_blank');
+            }
+        }
+
+        // 搜索种子
+        async function searchTorrent(code) {
+            try {
+                // 显示下载提示
+                components.showNotification('🎬 正在启动智能下载...', 'info');
+
+                // 获取影片信息（从当前搜索结果中）
+                let title = code; // 默认使用番号作为标题
+                let coverUrl = ''; // 获取封面图片URL
+                const onlineResult = onlineResults.find(movie => movie.code === code);
+                if (onlineResult) {
+                    title = onlineResult.title || code;
+                    coverUrl = onlineResult.cover_url || '';
+                }
+
+                // 调用排行榜下载服务 API（使用与排行榜下载相同的逻辑）
+                const downloadResponse = await fetch('/api/v1/rankings/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        title: title,
+                        cover_url: coverUrl,  // 传递封面图片URL
+                        source: 'manual',    // 手动下载源
+                        rank_type: 'daily'   // 默认使用日榜类型
+                    })
+                });
+
+                if (!downloadResponse.ok) {
+                    throw new Error('启动下载任务失败');
+                }
+
+                const downloadResult = await downloadResponse.json();
+                if (downloadResult.success) {
+                    components.showNotification('✅ 下载任务已启动，正在后台处理...', 'success');
+                } else {
+                    components.showNotification(`❌ ${downloadResult.error || '启动下载任务失败'}`, 'error');
+                }
+
+            } catch (error) {
+                console.error('启动下载任务失败:', error);
+                components.showNotification(`❌ 下载失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 加载更多
+        function loadMore() {
+            currentPage++;
+            const results = currentTab === 'local' ? localResults : onlineResults;
+            displayResults(results);
+        }
+
+        // 返回顶部
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
         
         // 页面加载完成
         document.addEventListener('DOMContentLoaded', function() {
@@ -176,68 +346,6 @@
             });
         });
         
-        // 快速搜索
-        function quickSearch(keyword) {
-            document.getElementById('searchInput').value = keyword;
-            performSearch();
-        }
-        
-        // 执行搜索
-        async function performSearch() {
-            const query = document.getElementById('searchInput').value.trim();
-            if (!query) {
-                components.showNotification('😅 请输入搜索关键词', 'warning');
-                return;
-            }
-            
-            const searchLocal = document.getElementById('searchLocal').checked;
-            const searchOnline = document.getElementById('searchOnline').checked;
-            
-            if (!searchLocal && !searchOnline) {
-                components.showNotification('😅 请至少选择一个搜索范围', 'warning');
-                return;
-            }
-            
-            // 重置结果
-            localResults = [];
-            onlineResults = [];
-            currentPage = 1;
-            
-            // 显示加载状态
-            const resultsContainer = document.getElementById('searchResults');
-            resultsContainer.innerHTML = components.createLoadingState('🔍 正在搜索...');
-            
-            // 执行搜索
-            const promises = [];
-            if (searchLocal) {
-                promises.push(searchLocalMovies(query));
-            }
-            if (searchOnline) {
-                promises.push(searchOnlineMovies(query));
-            }
-            
-            await Promise.all(promises);
-            
-            // 显示第一个有结果的标签
-            if (localResults.length > 0) {
-                switchTab('local');
-            } else if (onlineResults.length > 0) {
-                switchTab('online');
-            } else {
-                resultsContainer.innerHTML = components.createEmptyState(
-                    '😔 没有找到相关影片',
-                    'fa-film',
-                    {
-                        label: '重新搜索',
-                        icon: 'fas fa-search',
-                        onClick: 'document.getElementById("searchInput").focus()'
-                    }
-                );
-            }
-            
-            // 更新计数
-            updateCounts();
-        }
         
         // 搜索本地影片
         async function searchLocalMovies(query) {
@@ -268,26 +376,6 @@
             } catch (error) {
                 console.error('搜索在线影片失败:', error);
                 components.showNotification('😅 搜索在线资源失败', 'error');
-            }
-        }
-        
-        // 切换标签
-        function switchTab(tab) {
-            currentTab = tab;
-            currentPage = 1;
-            
-            // 更新标签样式
-            const localTab = document.getElementById('localTab');
-            const onlineTab = document.getElementById('onlineTab');
-            
-            if (tab === 'local') {
-                localTab.className = 'btn btn-primary';
-                onlineTab.className = 'btn btn-secondary';
-                displayResults(localResults);
-            } else {
-                localTab.className = 'btn btn-secondary';
-                onlineTab.className = 'btn btn-primary';
-                displayResults(onlineResults);
             }
         }
         
@@ -371,51 +459,25 @@
                 </div>
             `;
         }
-        
-        // 查看影片详情
-        function viewMovieDetail(code) {
-            if (currentTab === 'local') {
-                window.location.href = `/local-movies.html?code=${code}`;
-            } else {
-                window.open(`https://javdb.com/search?q=${code}`, '_blank');
-            }
-        }
-        
-        // 搜索种子
-        function searchTorrent(code) {
-            window.location.href = `/downloads.html?search=${code}`;
-        }
-        
-        // 加载更多
-        function loadMore() {
-            currentPage++;
-            const results = currentTab === 'local' ? localResults : onlineResults;
-            displayResults(results);
-        }
-        
+
         // 更新计数
         function updateCounts() {
             const localCount = document.getElementById('localCount');
             const onlineCount = document.getElementById('onlineCount');
-            
+
             if (localResults.length > 0) {
                 localCount.textContent = localResults.length;
                 localCount.classList.remove('hidden');
             } else {
                 localCount.classList.add('hidden');
             }
-            
+
             if (onlineResults.length > 0) {
                 onlineCount.textContent = onlineResults.length;
                 onlineCount.classList.remove('hidden');
             } else {
                 onlineCount.classList.add('hidden');
             }
-        }
-        
-        // 返回顶部
-        function scrollToTop() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     </script>
 </body>
