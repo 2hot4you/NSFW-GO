@@ -52,6 +52,25 @@ func (s *RankingDownloadService) StartDownloadTask(code, title, source, rankType
 		return existingTask, nil
 	}
 	
+	// 检查是否有历史任务（现在会正确排除软删除记录）
+	if historyTask, _ := s.taskRepo.GetByCode(code); historyTask != nil {
+		// 如果历史任务是失败/取消状态，允许重新创建
+		if historyTask.Status == model.RankingDownloadStatusFailed || 
+		   historyTask.Status == model.RankingDownloadStatusCancelled {
+			// 软删除历史任务，为新任务让路
+			if err := s.taskRepo.Delete(historyTask.ID); err != nil {
+				return nil, fmt.Errorf("清理历史任务失败: %v", err)
+			}
+			log.Printf("[下载服务] 清理历史失败任务: %s (状态: %s)", code, historyTask.Status)
+		} else {
+			// 如果是已完成/进行中任务，返回现有任务或错误信息
+			if historyTask.Status == model.RankingDownloadStatusCompleted {
+				return nil, fmt.Errorf("番号 %s 已完成下载", code)
+			}
+			return historyTask, nil
+		}
+	}
+	
 	// 创建新的下载任务
 	task := &model.RankingDownloadTask{
 		Code:     code,

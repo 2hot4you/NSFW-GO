@@ -77,10 +77,10 @@ func (r *rankingDownloadTaskRepo) GetByID(id uint) (*model.RankingDownloadTask, 
 	return &task, nil
 }
 
-// GetByCode 根据番号获取任务
+// GetByCode 根据番号获取任务（不包括软删除）
 func (r *rankingDownloadTaskRepo) GetByCode(code string) (*model.RankingDownloadTask, error) {
 	var task model.RankingDownloadTask
-	err := r.db.Where("code = ?", code).First(&task).Error
+	err := r.db.Where("code = ? AND deleted_at IS NULL", code).First(&task).Error
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (r *rankingDownloadTaskRepo) GetByCode(code string) (*model.RankingDownload
 // GetActiveTaskByCode 获取指定番号的活跃任务（非完成、非失败）
 func (r *rankingDownloadTaskRepo) GetActiveTaskByCode(code string) (*model.RankingDownloadTask, error) {
 	var task model.RankingDownloadTask
-	err := r.db.Where("code = ? AND status NOT IN (?, ?, ?)", 
+	err := r.db.Where("code = ? AND status NOT IN (?, ?, ?) AND deleted_at IS NULL", 
 		code, 
 		model.RankingDownloadStatusCompleted, 
 		model.RankingDownloadStatusFailed,

@@ -208,6 +208,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 			{
 				local.POST("/scan", localHandler.ScanLocalMovies)      // 手动扫描本地影片库
 				local.GET("/movies", localHandler.GetLocalMovies)      // 获取本地影片列表
+				local.GET("/search", localHandler.SearchLocalMovies)   // 搜索本地影片
 				local.GET("/stats", localHandler.GetLocalMovieStats)   // 获取本地影片统计
 				local.GET("/image/*filepath", localHandler.ServeImage) // 提供图片服务
 			}

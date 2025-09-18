@@ -25,18 +25,23 @@ func NewJAVDbSearchHandler(searchService *service.JAVDbSearchService) *JAVDbSear
 
 // JAVDbSearchRequest 搜索请求
 type JAVDbSearchRequest struct {
-	Query      string `form:"q" json:"q" binding:"required"`
+	Query      string `form:"q" json:"q"`
+	Keyword    string `form:"keyword" json:"keyword"`
 	SearchType string `form:"type" json:"type"` // movie, actress
 }
 
 // JAVDbMovieSearchResponse 影片搜索响应
 type JAVDbMovieSearchResponse struct {
-	Code        string  `json:"code"`
-	Title       string  `json:"title"`
-	CoverURL    string  `json:"cover_url"`
-	Rating      float32 `json:"rating"`
-	ReleaseDate string  `json:"release_date"`
-	DetailURL   string  `json:"detail_url"`
+	Code        string   `json:"code"`
+	Title       string   `json:"title"`
+	CoverURL    string   `json:"cover_url"`
+	Rating      float32  `json:"rating"`
+	ReleaseDate string   `json:"release_date"`
+	Date        string   `json:"date"`        // 兼容字段
+	DetailURL   string   `json:"detail_url"`
+	Actresses   []string `json:"actresses"`   // 演员列表（空数组）
+	Actors      []string `json:"actors"`      // 兼容字段
+	HasLocal    bool     `json:"has_local"`   // 是否在本地存在
 }
 
 // JAVDbActressSearchResponse 演员搜索响应
@@ -81,8 +86,11 @@ func (h *JAVDbSearchHandler) SearchJAVDb(c *gin.Context) {
 		return
 	}
 
-	// 清理查询词
+	// 清理查询词，支持两种参数名
 	query := strings.TrimSpace(req.Query)
+	if query == "" {
+		query = strings.TrimSpace(req.Keyword)
+	}
 	if query == "" {
 		c.JSON(http.StatusBadRequest, Response{
 			Code:    "ERROR",
@@ -135,16 +143,22 @@ func (h *JAVDbSearchHandler) searchMovie(c *gin.Context, ctx context.Context, co
 		Rating:      result.Rating,
 		DetailURL:   result.DetailURL,
 		ReleaseDate: "",
+		Date:        "",
+		Actresses:   []string{},
+		Actors:      []string{},
+		HasLocal:    false,
 	}
 
 	if !result.ReleaseDate.IsZero() {
 		response.ReleaseDate = result.ReleaseDate.Format("2006-01-02")
+		response.Date = response.ReleaseDate // 兼容字段
 	}
 
+	// 返回数组格式以兼容前端
 	c.JSON(http.StatusOK, Response{
 		Code:    "SUCCESS",
 		Message: "搜索成功",
-		Data:    response,
+		Data:    []JAVDbMovieSearchResponse{response},
 	})
 }
 

@@ -188,6 +188,61 @@ func (h *LocalHandler) GetLocalMovieStats(c *gin.Context) {
 	})
 }
 
+// SearchLocalMovies 搜索本地影片
+// @Summary 搜索本地影片
+// @Description 根据关键词搜索本地影片库中的影片，支持番号、标题、女优名等
+// @Tags local
+// @Accept json
+// @Produce json
+// @Param keyword query string true "搜索关键词"
+// @Success 200 {object} Response{data=[]LocalMovie} "搜索结果"
+// @Failure 400 {object} ErrorResponse "参数错误"
+// @Failure 500 {object} ErrorResponse "搜索失败"
+// @Router /local/search [get]
+func (h *LocalHandler) SearchLocalMovies(c *gin.Context) {
+	keyword := strings.TrimSpace(c.Query("keyword"))
+	if keyword == "" {
+		c.JSON(http.StatusBadRequest, Response{
+			Code:    "ERROR",
+			Message: "搜索关键词不能为空",
+		})
+		return
+	}
+
+	// 从数据库搜索影片
+	dbMovies, _, err := h.localMovieRepo.Search(keyword, 0, 100) // 默认返回前100个结果
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Code:    "ERROR",
+			Message: fmt.Sprintf("搜索失败: %v", err),
+		})
+		return
+	}
+
+	// 转换为API响应格式
+	movies := make([]LocalMovie, len(dbMovies))
+	for i, movie := range dbMovies {
+		movies[i] = LocalMovie{
+			Title:      movie.Title,
+			Code:       movie.Code,
+			Actress:    movie.Actress,
+			Path:       movie.Path,
+			Size:       movie.Size,
+			Modified:   movie.Modified.Format("2006-01-02 15:04:05"),
+			Format:     movie.Format,
+			FanartPath: movie.FanartPath,
+			FanartURL:  movie.FanartURL,
+			HasFanart:  movie.HasFanart,
+		}
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Code:    "SUCCESS",
+		Message: "搜索成功",
+		Data:    movies,
+	})
+}
+
 // ServeImage 提供图片服务
 func (h *LocalHandler) ServeImage(c *gin.Context) {
 	imagePath := c.Param("filepath")
