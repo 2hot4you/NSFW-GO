@@ -20,12 +20,12 @@
 
 /* 🌙 深色主题（默认） */
 :root {
-    /* 背景色 */
-    --bg-dark: #0f0f13;
-    --bg-dark-secondary: #1a1a23;
-    --bg-dark-tertiary: #252533;
-    --bg-card: rgba(30, 30, 45, 0.7);
-    --bg-card-hover: rgba(40, 40, 60, 0.9);
+    /* 背景色 - 纯黑背景 */
+    --bg-dark: #000000;
+    --bg-dark-secondary: #111111;
+    --bg-dark-tertiary: #1a1a1a;
+    --bg-card: rgba(17, 17, 17, 0.95);
+    --bg-card-hover: rgba(26, 26, 26, 0.98);
     
     /* 文字颜色 */
     --text-primary: #ffffff;
@@ -38,19 +38,19 @@
     --border-color-hover: rgba(255, 255, 255, 0.3);
 }
 
-/* 🎯 通用尺寸 */
+/* 🎯 通用尺寸和布局 */
 :root {
     --border-radius-sm: 8px;
     --border-radius-md: 12px;
     --border-radius-lg: 16px;
     --border-radius-xl: 24px;
-    
-    /* 🎬 阴影 */
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.3);
-    
+
+    /* 🎬 阴影 - 增强在纯黑背景下的可见性 */
+    --shadow-sm: 0 2px 8px rgba(139, 92, 246, 0.15);
+    --shadow-md: 0 4px 16px rgba(139, 92, 246, 0.2);
+    --shadow-lg: 0 8px 32px rgba(139, 92, 246, 0.25);
+    --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.4);
+
     /* 📏 间距 */
     --spacing-xs: 4px;
     --spacing-sm: 8px;
@@ -58,13 +58,71 @@
     --spacing-lg: 24px;
     --spacing-xl: 32px;
     --spacing-2xl: 48px;
-    
+
+    /* 📐 容器宽度统一 - 调整为80%宽度 */
+    --container-sm: 640px;
+    --container-md: 768px;
+    --container-lg: 1024px;
+    --container-xl: 80%;
+    --container-2xl: 85%;
+    --container-max-width: 1400px;
+    --container-padding: clamp(16px, 3vw, 32px);
+
+    /* 📝 字体大小规范 */
+    --text-xs: 0.75rem;    /* 12px */
+    --text-sm: 0.875rem;   /* 14px */
+    --text-base: 1rem;     /* 16px */
+    --text-lg: 1.125rem;   /* 18px */
+    --text-xl: 1.25rem;    /* 20px */
+    --text-2xl: 1.5rem;    /* 24px */
+    --text-3xl: 1.875rem;  /* 30px */
+    --text-4xl: 2.25rem;   /* 36px */
+
     /* 🎭 动画 */
     --transition-fast: 150ms ease;
     --transition-base: 250ms ease;
     --transition-slow: 350ms ease;
     --animation-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
+
+/* 📐 统一页面容器 */
+.page-container {
+    width: var(--container-xl);
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+}
+
+.page-container-sm {
+    max-width: var(--container-sm);
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+}
+
+.page-container-lg {
+    width: var(--container-2xl);
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+}
+
+/* 📊 专门为表格页面优化的容器 */
+.page-container-table {
+    width: 95%;
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: 0 var(--container-padding);
+}
+
+/* 📝 字体大小统一类 */
+.text-xs { font-size: var(--text-xs); }
+.text-sm { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-lg { font-size: var(--text-lg); }
+.text-xl { font-size: var(--text-xl); }
+.text-2xl { font-size: var(--text-2xl); }
+.text-3xl { font-size: var(--text-3xl); }
+.text-4xl { font-size: var(--text-4xl); }
 
 /* 🎯 全局样式重置 */
 * {
@@ -318,7 +376,7 @@ body {
 }
 
 .stat-value {
-    font-size: 2.5rem;
+    font-size: 1.5rem;
     font-weight: 700;
     background: var(--primary-gradient);
     -webkit-background-clip: text;
@@ -367,6 +425,7 @@ body {
     border-radius: var(--border-radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-md);
+    table-layout: fixed; /* 固定表格布局，更好的列宽控制 */
 }
 
 .data-table thead {
@@ -374,21 +433,26 @@ body {
 }
 
 .data-table th {
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
     text-align: left;
     font-weight: 600;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: var(--text-xs);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 2px solid var(--border-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .data-table td {
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
     border-bottom: 1px solid var(--border-color);
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: var(--text-xs);
+    word-wrap: break-word;
+    vertical-align: top;
 }
 
 .data-table tbody tr {
@@ -397,6 +461,74 @@ body {
 
 .data-table tbody tr:hover {
     background: var(--bg-dark-secondary);
+}
+
+/* 📊 表格列宽优化 */
+.data-table .col-time { width: 12%; }
+.data-table .col-level { width: 8%; }
+.data-table .col-module { width: 12%; }
+.data-table .col-action { width: 15%; }
+.data-table .col-message { width: 53%; }
+
+/* 📱 响应式表格 */
+@media (max-width: 1024px) {
+    .data-table {
+        font-size: var(--text-xs);
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    .data-table .col-time { width: 15%; }
+    .data-table .col-level { width: 10%; }
+    .data-table .col-module { width: 15%; }
+    .data-table .col-action { width: 20%; }
+    .data-table .col-message { width: 40%; }
+}
+
+@media (max-width: 768px) {
+    .data-table .col-module,
+    .data-table .col-action {
+        display: none; /* 移动端隐藏部分列 */
+    }
+
+    .data-table .col-time { width: 25%; }
+    .data-table .col-level { width: 15%; }
+    .data-table .col-message { width: 60%; }
+}
+
+/* 📋 日志页面特殊样式 */
+.data-table .font-mono {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: var(--text-xs);
+}
+
+.data-table .break-words {
+    word-break: break-word;
+    white-space: pre-wrap;
+    max-width: 0; /* 配合table-layout: fixed 实现自动换行 */
+}
+
+.data-table tr.log-level-error {
+    background: rgba(239, 68, 68, 0.05);
+    border-left: 3px solid var(--danger);
+}
+
+.data-table tr.log-level-warn {
+    background: rgba(245, 158, 11, 0.05);
+    border-left: 3px solid var(--warning);
+}
+
+.data-table tr.log-level-info {
+    background: rgba(16, 185, 129, 0.05);
+    border-left: 3px solid var(--success);
+}
+
+.data-table tr.log-level-debug {
+    background: rgba(99, 102, 241, 0.05);
+    border-left: 3px solid var(--info);
 }
 
 /* 🎬 动画效果 */
@@ -482,7 +614,7 @@ body {
     }
     
     .stat-value {
-        font-size: 2rem;
+        font-size: 1.25rem;
     }
     
     .btn {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"net/url"
 	"nsfw-go/internal/model"
 	"nsfw-go/internal/repo"
@@ -37,26 +36,32 @@ type ScannerService struct {
 	mediaLibraryPath string
 	ctx              context.Context
 	cancel           context.CancelFunc
+	logService       *LogService
 }
 
 // NewScannerService 创建扫描服务
-func NewScannerService(localMovieRepo repo.LocalMovieRepository, mediaLibraryPath string) *ScannerService {
+func NewScannerService(localMovieRepo repo.LocalMovieRepository, mediaLibraryPath string, logService *LogService) *ScannerService {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ScannerService{
 		localMovieRepo:   localMovieRepo,
 		mediaLibraryPath: mediaLibraryPath,
 		ctx:              ctx,
 		cancel:           cancel,
+		logService:       logService,
 	}
 }
 
 // Start 启动定时扫描
 func (s *ScannerService) Start() {
 	if s.mediaLibraryPath == "" {
-		log.Println("📂 媒体库路径未配置，跳过本地影片扫描")
+		if s.logService != nil {
+			s.logService.LogWarn("scanner", "media-scan", "媒体库路径未配置，跳过本地影片扫描")
+		}
 		return
 	}
-	log.Printf("🔍 启动本地影片扫描服务，媒体库路径: %s，每15分钟扫描一次", s.mediaLibraryPath)
+	if s.logService != nil {
+		s.logService.LogInfo("scanner", "media-scan", fmt.Sprintf("启动本地影片扫描服务，媒体库路径: %s，每15分钟扫描一次", s.mediaLibraryPath))
+	}
 
 	// 立即执行一次扫描
 	go s.scanAndStore()
@@ -70,7 +75,9 @@ func (s *ScannerService) Start() {
 				s.scanAndStore()
 			case <-s.ctx.Done():
 				ticker.Stop()
-				log.Println("📴 本地影片扫描服务已停止")
+				if s.logService != nil {
+					s.logService.LogInfo("scanner", "media-scan", "本地影片扫描服务已停止")
+				}
 				return
 			}
 		}
@@ -86,19 +93,25 @@ func (s *ScannerService) Stop() {
 
 // scanAndStore 扫描并存储到数据库
 func (s *ScannerService) scanAndStore() {
-	log.Println("🔍 开始扫描本地影片库...")
+	if s.logService != nil {
+		s.logService.LogInfo("scanner", "media-scan", "开始扫描本地影片库...")
+	}
 	startTime := time.Now()
 
 	// 扫描文件系统
 	movies, err := s.scanDirectory(s.mediaLibraryPath)
 	if err != nil {
-		log.Printf("❌ 扫描失败: %v", err)
+		if s.logService != nil {
+			s.logService.LogError("scanner", "media-scan", fmt.Sprintf("扫描失败: %v", err))
+		}
 		return
 	}
 
 	// 清空旧数据
 	if err := s.localMovieRepo.Clear(); err != nil {
-		log.Printf("❌ 清空旧数据失败: %v", err)
+		if s.logService != nil {
+			s.logService.LogError("scanner", "media-scan", fmt.Sprintf("清空旧数据失败: %v", err))
+		}
 		return
 	}
 
@@ -113,21 +126,29 @@ func (s *ScannerService) scanAndStore() {
 					skipCount++
 					continue
 				}
-				log.Printf("⚠️ 插入影片失败 [%s]: %v", movie.Path, err)
+				if s.logService != nil {
+					s.logService.LogWarn("scanner", "media-scan", fmt.Sprintf("插入影片失败 [%s]: %v", movie.Path, err))
+				}
 				continue
 			}
 			successCount++
 		}
-		log.Printf("✅ 成功插入 %d 部影片，跳过重复 %d 部，总计扫描 %d 部", successCount, skipCount, len(movies))
+		if s.logService != nil {
+			s.logService.LogInfo("scanner", "media-scan", fmt.Sprintf("成功插入 %d 部影片，跳过重复 %d 部，总计扫描 %d 部", successCount, skipCount, len(movies)))
+		}
 	}
 
 	duration := time.Since(startTime)
-	log.Printf("✅ 扫描完成，共找到 %d 部影片，耗时 %v", len(movies), duration)
+	if s.logService != nil {
+		s.logService.LogInfo("scanner", "media-scan", fmt.Sprintf("扫描完成，共找到 %d 部影片，耗时 %v", len(movies), duration))
+	}
 }
 
 // ForceRescan 强制重新扫描
 func (s *ScannerService) ForceRescan() error {
-	log.Println("🔄 手动触发重新扫描...")
+	if s.logService != nil {
+		s.logService.LogInfo("scanner", "media-scan", "手动触发重新扫描...")
+	}
 	s.scanAndStore()
 	return nil
 }

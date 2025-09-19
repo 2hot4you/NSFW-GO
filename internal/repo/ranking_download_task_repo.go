@@ -15,6 +15,7 @@ type RankingDownloadTaskRepository interface {
 	GetByCode(code string) (*model.RankingDownloadTask, error)
 	Update(task *model.RankingDownloadTask) error
 	Delete(id uint) error
+	HardDelete(id uint) error
 	
 	// 查询方法
 	GetActiveTaskByCode(code string) (*model.RankingDownloadTask, error)
@@ -107,9 +108,14 @@ func (r *rankingDownloadTaskRepo) Update(task *model.RankingDownloadTask) error 
 	return r.db.Save(task).Error
 }
 
-// Delete 删除任务
+// Delete 删除任务（软删除）
 func (r *rankingDownloadTaskRepo) Delete(id uint) error {
 	return r.db.Delete(&model.RankingDownloadTask{}, id).Error
+}
+
+// HardDelete 硬删除任务（彻底删除记录）
+func (r *rankingDownloadTaskRepo) HardDelete(id uint) error {
+	return r.db.Unscoped().Delete(&model.RankingDownloadTask{}, id).Error
 }
 
 // GetTasksByStatus 根据状态获取任务

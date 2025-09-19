@@ -1,0 +1,40 @@
+[Unit]
+Description=NSFW-Go Media Server
+Documentation=https://github.com/nsfw-go/nsfw-go
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/projects/NSFW-GO
+ExecStart=/projects/NSFW-GO/bin/nsfw-go -config /projects/NSFW-GO/config.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30
+
+# 环境变量
+Environment=GIN_MODE=release
+Environment=GO_ENV=production
+
+# 日志配置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nsfw-go
+
+# 安全配置
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/projects/NSFW-GO/logs /projects/NSFW-GO/data
+PrivateTmp=true
+
+# 资源限制
+LimitNOFILE=65535
+LimitNPROC=32768
+
+[Install]
+WantedBy=multi-user.target

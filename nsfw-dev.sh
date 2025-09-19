@@ -93,6 +93,164 @@ check_docker_container() {
     fi
 }
 
+# 函数：检查端口是否被其他进程占用
+check_port_conflict() {
+    local port=$1
+    local service_name=$2
+
+    if netstat -tlnp 2>/dev/null | grep -q ":$port "; then
+        local pid=$(netstat -tlnp 2>/dev/null | grep ":$port " | awk '{print $7}' | cut -d'/' -f1 | head -1)
+        local process_name=$(ps -p $pid -o comm= 2>/dev/null || echo "unknown")
+
+        print_warning "$service_name 端口 $port 被占用"
+        if [ ! -z "$pid" ]; then
+            echo -e "   进程信息: PID $pid ($process_name)"
+
+            # 询问是否终止占用进程
+            echo -e "${YELLOW}选择操作:${NC}"
+            echo "  1) 终止占用进程并继续启动"
+            echo "  2) 跳过此服务启动"
+            echo "  3) 退出脚本"
+            echo ""
+            read -p "请选择 (1-3): " choice
+
+            case $choice in
+                1)
+                    print_info "正在终止进程 $pid..."
+                    if kill $pid 2>/dev/null; then
+                        sleep 2
+                        if kill -0 $pid 2>/dev/null; then
+                            print_warning "进程未完全停止，强制终止..."
+                            kill -9 $pid 2>/dev/null
+                        fi
+                        print_success "进程已终止，端口已释放"
+                        return 0
+                    else
+                        print_error "无法终止进程 $pid"
+                        return 1
+                    fi
+                    ;;
+                2)
+                    print_warning "跳过 $service_name 启动"
+                    return 2
+                    ;;
+                3)
+                    print_info "退出脚本"
+                    exit 0
+                    ;;
+                *)
+                    print_error "无效选择"
+                    return 1
+                    ;;
+            esac
+        else
+            print_error "无法获取进程信息，请手动检查端口占用"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# 函数：智能端口冲突处理
+handle_port_conflicts() {
+    print_info "检查端口冲突..."
+
+    local conflicts=()
+
+    # 检查各个端口
+    if netstat -tlnp 2>/dev/null | grep -q ":$POSTGRES_PORT "; then
+        conflicts+=("PostgreSQL:$POSTGRES_PORT")
+    fi
+
+    if netstat -tlnp 2>/dev/null | grep -q ":$REDIS_PORT "; then
+        conflicts+=("Redis:$REDIS_PORT")
+    fi
+
+    if netstat -tlnp 2>/dev/null | grep -q ":$API_PORT "; then
+        conflicts+=("API服务器:$API_PORT")
+    fi
+
+    if [ ${#conflicts[@]} -eq 0 ]; then
+        print_success "所有端口可用"
+        return 0
+    fi
+
+    # 显示冲突信息
+    print_warning "检测到端口冲突:"
+    for conflict in "${conflicts[@]}"; do
+        local service_name=$(echo $conflict | cut -d':' -f1)
+        local port=$(echo $conflict | cut -d':' -f2)
+        local pid=$(netstat -tlnp 2>/dev/null | grep ":$port " | awk '{print $7}' | cut -d'/' -f1 | head -1)
+        local process_name=$(ps -p $pid -o comm= 2>/dev/null || echo "unknown")
+        echo -e "  • $service_name (端口 $port): PID $pid ($process_name)"
+    done
+    echo ""
+
+    echo -e "${YELLOW}选择冲突处理方式:${NC}"
+    echo "  1) 自动终止所有冲突进程"
+    echo "  2) 逐个处理端口冲突"
+    echo "  3) 跳过冲突检查，强制启动"
+    echo "  4) 退出脚本"
+    echo ""
+    read -p "请选择 (1-4): " choice
+
+    case $choice in
+        1)
+            print_info "自动处理所有端口冲突..."
+            for conflict in "${conflicts[@]}"; do
+                local service_name=$(echo $conflict | cut -d':' -f1)
+                local port=$(echo $conflict | cut -d':' -f2)
+                auto_kill_port_process $port "$service_name"
+            done
+            return 0
+            ;;
+        2)
+            for conflict in "${conflicts[@]}"; do
+                local service_name=$(echo $conflict | cut -d':' -f1)
+                local port=$(echo $conflict | cut -d':' -f2)
+                check_port_conflict $port "$service_name"
+            done
+            return 0
+            ;;
+        3)
+            print_warning "跳过端口冲突检查，强制启动服务"
+            return 0
+            ;;
+        4)
+            print_info "退出脚本"
+            exit 0
+            ;;
+        *)
+            print_error "无效选择，退出脚本"
+            exit 1
+            ;;
+    esac
+}
+
+# 函数：自动终止端口占用进程
+auto_kill_port_process() {
+    local port=$1
+    local service_name=$2
+
+    local pid=$(netstat -tlnp 2>/dev/null | grep ":$port " | awk '{print $7}' | cut -d'/' -f1 | head -1)
+    if [ ! -z "$pid" ]; then
+        local process_name=$(ps -p $pid -o comm= 2>/dev/null || echo "unknown")
+        print_info "终止 $service_name 端口占用进程: PID $pid ($process_name)"
+
+        if kill $pid 2>/dev/null; then
+            sleep 1
+            if kill -0 $pid 2>/dev/null; then
+                print_warning "强制终止进程..."
+                kill -9 $pid 2>/dev/null
+                sleep 1
+            fi
+            print_success "$service_name 端口已释放"
+        else
+            print_error "无法终止 $service_name 端口占用进程"
+        fi
+    fi
+}
+
 # 函数：检查Go开发服务器
 check_go_dev() {
     # 首先检查API端口是否监听（最可靠的方法）
@@ -184,7 +342,10 @@ start() {
     print_header
     echo ""
     print_info "启动开发环境..."
-    
+
+    # 检查端口冲突
+    handle_port_conflicts
+
     # 启动Docker服务
     print_info "启动 PostgreSQL 和 Redis 服务..."
     if ! docker compose -f docker-compose.dev.yml up -d; then
@@ -380,9 +541,15 @@ help() {
     echo "  • Redis: $REDIS_PORT"
     echo "  • API服务器: $API_PORT"
     echo ""
+    echo "端口冲突处理:"
+    echo "  脚本会自动检测端口占用情况，提供以下选项："
+    echo "  • 自动终止冲突进程"
+    echo "  • 逐个处理端口冲突"
+    echo "  • 跳过冲突检查，强制启动"
+    echo ""
     echo "示例:"
-    echo "  $0 start     # 启动开发环境"
-    echo "  $0 status    # 检查服务状态"
+    echo "  $0 start     # 启动开发环境 (包含端口冲突检查)"
+    echo "  $0 status    # 检查服务状态和端口占用"
     echo "  $0 logs      # 查看日志"
     echo ""
 }

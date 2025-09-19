@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -17,15 +16,17 @@ import (
 
 // JAVDbSearchService JAVDb搜索服务
 type JAVDbSearchService struct {
-	baseURL string
-	config  *crawler.CrawlerConfig
+	baseURL    string
+	config     *crawler.CrawlerConfig
+	logService *LogService
 }
 
 // NewJAVDbSearchService 创建JAVDb搜索服务
-func NewJAVDbSearchService(config *crawler.CrawlerConfig) *JAVDbSearchService {
+func NewJAVDbSearchService(config *crawler.CrawlerConfig, logService *LogService) *JAVDbSearchService {
 	return &JAVDbSearchService{
-		baseURL: "https://javdb.com",
-		config:  config,
+		baseURL:    "https://javdb.com",
+		config:     config,
+		logService: logService,
 	}
 }
 
@@ -76,7 +77,9 @@ func (s *JAVDbSearchService) SearchMovieByCode(ctx context.Context, code string)
 
 	// 添加响应处理
 	c.OnResponse(func(r *colly.Response) {
-		log.Printf("[JAVDb搜索] 访问 %s 成功，状态码: %d", r.Request.URL, r.StatusCode)
+		if s.logService != nil {
+		s.logService.LogInfo("crawler", "javdb-search", fmt.Sprintf("访问 %s 成功，状态码: %d", r.Request.URL, r.StatusCode))
+	}
 	})
 
 	var result *MovieSearchResult
@@ -105,7 +108,9 @@ func (s *JAVDbSearchService) SearchMovieByCode(ctx context.Context, code string)
 		}
 
 		if detailURL == "" {
-			log.Printf("[JAVDb搜索] 未找到链接，标题: %s", title)
+			if s.logService != nil {
+			s.logService.LogWarn("crawler", "javdb-search", fmt.Sprintf("未找到链接，标题: %s", title))
+		}
 			return
 		}
 
@@ -170,7 +175,9 @@ func (s *JAVDbSearchService) SearchMovieByCode(ctx context.Context, code string)
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		log.Printf("[JAVDb搜索] 访问失败: URL=%s, 状态码=%d, 错误=%v", r.Request.URL, r.StatusCode, err)
+		if s.logService != nil {
+		s.logService.LogError("crawler", "javdb-search", fmt.Sprintf("访问失败: URL=%s, 状态码=%d, 错误=%v", r.Request.URL, r.StatusCode, err))
+	}
 		searchErr = fmt.Errorf("搜索失败: %v", err)
 	})
 
@@ -190,7 +197,9 @@ func (s *JAVDbSearchService) SearchMovieByCode(ctx context.Context, code string)
 		return nil, fmt.Errorf("未找到番号为 %s 的影片", code)
 	}
 
-	log.Printf("[JAVDb搜索] 找到番号 %s 的影片: %s", code, result.Title)
+	if s.logService != nil {
+		s.logService.LogInfo("crawler", "javdb-search", fmt.Sprintf("找到番号 %s 的影片: %s", code, result.Title))
+	}
 	return result, nil
 }
 
@@ -213,7 +222,9 @@ func (s *JAVDbSearchService) SearchActressByName(ctx context.Context, actressNam
 
 	// 添加响应处理
 	c.OnResponse(func(r *colly.Response) {
-		log.Printf("[JAVDb演员搜索] 访问 %s 成功，状态码: %d", r.Request.URL, r.StatusCode)
+		if s.logService != nil {
+		s.logService.LogInfo("crawler", "javdb-actress-search", fmt.Sprintf("访问 %s 成功，状态码: %d", r.Request.URL, r.StatusCode))
+	}
 	})
 
 	var result *ActressSearchResult
@@ -292,7 +303,9 @@ func (s *JAVDbSearchService) SearchActressByName(ctx context.Context, actressNam
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		log.Printf("[JAVDb演员搜索] 访问失败: URL=%s, 状态码=%d, 错误=%v", r.Request.URL, r.StatusCode, err)
+		if s.logService != nil {
+		s.logService.LogError("crawler", "javdb-actress-search", fmt.Sprintf("访问失败: URL=%s, 状态码=%d, 错误=%v", r.Request.URL, r.StatusCode, err))
+	}
 		searchErr = fmt.Errorf("搜索演员失败: %v", err)
 	})
 
@@ -312,7 +325,9 @@ func (s *JAVDbSearchService) SearchActressByName(ctx context.Context, actressNam
 		return nil, fmt.Errorf("未找到演员: %s", actressName)
 	}
 
-	log.Printf("[JAVDb搜索] 找到演员: %s", result.Name)
+	if s.logService != nil {
+		s.logService.LogInfo("crawler", "javdb-actress-search", fmt.Sprintf("找到演员: %s", result.Name))
+	}
 	return result, nil
 }
 
@@ -400,7 +415,9 @@ func (s *JAVDbSearchService) GetActressMovies(ctx context.Context, actressURL st
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		log.Printf("[JAVDb获取演员作品] 访问失败: URL=%s, 状态码=%d, 错误=%v", r.Request.URL, r.StatusCode, err)
+		if s.logService != nil {
+		s.logService.LogError("crawler", "javdb-actress-movies", fmt.Sprintf("访问失败: URL=%s, 状态码=%d, 错误=%v", r.Request.URL, r.StatusCode, err))
+	}
 		searchErr = fmt.Errorf("获取演员作品失败: %v", err)
 	})
 
@@ -416,7 +433,9 @@ func (s *JAVDbSearchService) GetActressMovies(ctx context.Context, actressURL st
 		return nil, searchErr
 	}
 
-	log.Printf("[JAVDb搜索] 获取演员作品完成，共 %d 部", len(results))
+	if s.logService != nil {
+		s.logService.LogInfo("crawler", "javdb-actress-movies", fmt.Sprintf("获取演员作品完成，共 %d 部", len(results)))
+	}
 	return results, nil
 }
 

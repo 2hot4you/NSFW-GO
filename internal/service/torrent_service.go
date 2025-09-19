@@ -292,15 +292,29 @@ func (s *TorrentService) DownloadTorrentWithNotification(magnetURI, downloadURI,
 		}
 	}
 
-	// 发送成功通知
+	// 发送成功通知（使用排行榜下载的精美格式）
 	if s.telegramService != nil {
-		s.telegramService.SendNotification("download_started", map[string]interface{}{
-			"code":     code,
-			"title":    title,
-			"size":     size,
-			"tracker":  tracker,
-			"uri_type": uriType,
-		})
+		// 获取封面URL（如果可能的话）
+		coverURL := ""
+		// 可以考虑通过JavdbSearchService获取封面，但这里先使用空字符串
+
+		// 格式化大小
+		sizeFormatted := ""
+		if size > 0 {
+			sizeFormatted = fmt.Sprintf("%.2f GB", float64(size)/1024/1024/1024)
+		}
+
+		// 使用增强的通知格式
+		err := s.telegramService.SendDownloadNotification(
+			code,
+			title,
+			coverURL,
+			sizeFormatted,
+			tracker,
+		)
+		if err != nil {
+			fmt.Printf("Telegram通知发送失败: %v\n", err)
+		}
 	}
 
 	return nil

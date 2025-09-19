@@ -13,7 +13,8 @@
             { href: '/search.html', icon: 'fas fa-search', text: '搜索', path: ['/search.html'] },
             { href: '/local-movies.html', icon: 'fas fa-folder', text: '本地库', path: ['/local-movies.html'] },
             { href: '/rankings.html', icon: 'fas fa-trophy', text: '排行榜', path: ['/rankings.html'] },
-            { href: '/downloads.html', icon: 'fas fa-download', text: '下载', path: ['/downloads.html'] }
+            { href: '/downloads.html', icon: 'fas fa-download', text: '下载', path: ['/downloads.html'] },
+            { href: '/logs.html', icon: 'fas fa-file-alt', text: '日志', path: ['/logs.html'] }
         ];
         
         // 生成导航链接HTML
@@ -109,21 +110,22 @@
         const style = document.createElement('style');
         style.id = 'modern-nav-styles';
         style.textContent = `
-            /* 导航栏主样式 */
+            /* 导航栏主样式 - 纯黑背景适配 */
             .main-navigation {
                 position: sticky;
                 top: 0;
                 z-index: 1000;
-                background: rgba(17, 24, 39, 0.95);
+                background: rgba(0, 0, 0, 0.95);
                 backdrop-filter: blur(12px);
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+                box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
             }
             
             .nav-container {
-                max-width: 1280px;
+                width: 80%;
+                max-width: 1400px;
                 margin: 0 auto;
-                padding: 0 1rem;
+                padding: 0 clamp(16px, 3vw, 32px);
                 height: 64px;
                 display: flex;
                 align-items: center;

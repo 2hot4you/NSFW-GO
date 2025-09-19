@@ -68,7 +68,7 @@ services:
       - NSFW_LOG_LEVEL=debug
     volumes:
       # - .:/app  # 注释掉开发模式的代码挂载，使用构建的二进制文件
-      - /MediaCenter:/app/media:ro  # 只读挂载媒体库
+      - /media:/app/media:ro  # 只读挂载媒体库 (修复路径)
       - ./logs:/app/logs
     depends_on:
       postgres:

@@ -64,8 +64,8 @@ deps:
 build: deps
 	@echo "正在构建 $(APP_NAME)..."
 	mkdir -p bin
-	go build -ldflags "$(LDFLAGS)" -o bin/$(APP_NAME)-api cmd/api/main.go
-	@echo "✓ 构建完成: bin/$(APP_NAME)-api"
+	go build -ldflags "$(LDFLAGS)" -o bin/$(APP_NAME) cmd/api/main.go
+	@echo "✓ 构建完成: bin/$(APP_NAME)"
 
 # 构建所有组件
 .PHONY: build-all

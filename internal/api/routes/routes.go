@@ -62,11 +62,9 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		ConcurrentMax: 3,
 	}
 
-	// 创建排行榜服务
-	rankingService := service.NewRankingService(crawlerConfig, rankingRepo, localMovieRepo)
+	// 稍后创建排行榜服务（需要等待 logService 创建）
 
-	// 创建JAVDb搜索服务
-	javdbSearchService := service.NewJAVDbSearchService(crawlerConfig)
+	// 稍后创建JAVDb搜索服务（需要等待 logService 创建）
 
 	// 创建配置服务
 	configService := service.NewConfigService("config.yaml")
@@ -155,6 +153,14 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		torrentService.SetTelegramService(telegramService)
 	}
 
+	// 创建日志服务（从配置中获取日志目录路径）
+	logDir := "logs"
+	if config, err := configStoreService.GetConfig("log.directory"); err == nil {
+		logDir = strings.Trim(config.String(), "\"")
+	}
+	logService := service.NewLogService(logDir)
+	log.Printf("📝 日志服务已创建，日志目录: %s", logDir)
+
 	// 创建排行榜下载服务
 	rankingDownloadService := service.NewRankingDownloadService(
 		rankingDownloadTaskRepo,
@@ -163,21 +169,37 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 		localMovieRepo,
 		torrentService,
 		telegramService,
+		logService,
 	)
 	log.Printf("📥 排行榜下载服务已创建")
+
+	// 记录系统启动相关日志
+	logService.LogInfo("system", "routes", "开始初始化服务路由")
+	logService.LogInfo("system", "database", "数据库连接已建立")
+	logService.LogInfo("system", "config", "配置服务已初始化")
 
 	// 创建扫描服务（从配置中获取媒体库路径）
 	mediaLibraryPath := "/media/default"
 	if config, err := configStoreService.GetConfig("media.base_path"); err == nil {
 		mediaLibraryPath = strings.Trim(config.String(), "\"")
 	}
-	scannerService := service.NewScannerService(localMovieRepo, mediaLibraryPath)
+	scannerService := service.NewScannerService(localMovieRepo, mediaLibraryPath, logService)
+
+	// 创建排行榜服务（现在 logService 已经创建）
+	rankingService := service.NewRankingService(crawlerConfig, rankingRepo, localMovieRepo, logService)
+
+	// 创建JAVDb搜索服务（现在 logService 已经创建）
+	javdbSearchService := service.NewJAVDbSearchService(crawlerConfig, logService)
 
 	// 启动服务
+	logService.LogInfo("scanner", "media-scan", "启动媒体库扫描服务，路径: "+mediaLibraryPath)
 	scannerService.Start()
+
+	logService.LogInfo("crawler", "ranking", "启动排行榜爬虫服务")
 	rankingService.Start()
 
 	// 创建处理器
+	logService.LogInfo("system", "handlers", "初始化API处理器")
 	localHandler := handlers.NewLocalHandler(localMovieRepo, scannerService, mediaLibraryPath)
 	statsHandler := handlers.NewStatsHandler(localMovieRepo, rankingRepo)
 	rankingHandler := handlers.NewRankingHandler(rankingService)
@@ -188,6 +210,16 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	configStoreHandler := handlers.NewConfigStoreHandler()
 	torrentHandler := handlers.NewTorrentHandler(torrentService)
 	systemHandler := handlers.NewSystemHandler()
+	logsHandler := handlers.NewLogsHandler(logService)
+
+	// 记录各种服务状态
+	if telegramService != nil {
+		logService.LogInfo("system", "telegram", "Telegram通知服务已启用")
+	} else {
+		logService.LogWarn("system", "telegram", "Telegram通知服务未配置或已禁用")
+	}
+	logService.LogInfo("torrent", "jackett", "Jackett搜索服务配置: "+jackettHost)
+	logService.LogInfo("torrent", "qbittorrent", "qBittorrent下载服务配置: "+qbittorrentHost)
 
 	// 健康检查
 	r.GET("/health", func(c *gin.Context) {
@@ -306,8 +338,21 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 				system.POST("/restart", systemHandler.RestartServer) // 重启服务器
 				system.GET("/info", systemHandler.GetSystemInfo)     // 获取系统信息
 			}
+
+			// 日志管理功能
+			logs := v1.Group("/logs")
+			{
+				logs.GET("", logsHandler.GetLogs)           // 获取日志列表
+				logs.DELETE("", logsHandler.ClearLogs)      // 清空日志
+				logs.GET("/stats", logsHandler.GetLogStats) // 获取日志统计
+				logs.POST("/test", logsHandler.CreateTestLogs) // 创建测试日志
+			}
 		}
 	}
+
+	// 记录路由初始化完成
+	logService.LogInfo("system", "routes", "所有API路由注册完成")
+	logService.LogInfo("system", "web", "静态文件服务配置完成")
 
 	// 静态文件服务（前端）
 	r.Static("/static", "./web/dist/static")
@@ -317,6 +362,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB) {
 	r.StaticFile("/search.html", "./web/dist/search.html")
 	r.StaticFile("/config.html", "./web/dist/config.html")
 	r.StaticFile("/downloads.html", "./web/dist/downloads.html")
+	r.StaticFile("/logs.html", "./web/dist/logs.html")
 	r.StaticFile("/javdb-search-test.html", "./web/dist/javdb-search-test.html")
 	r.StaticFile("/favicon.ico", "./web/dist/favicon.ico")
 

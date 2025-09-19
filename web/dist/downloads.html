@@ -98,13 +98,13 @@
     <!-- 导航栏将由modern-nav.js自动插入 -->
     
     <!-- 主内容区 -->
-    <main class="downloads-container max-w-7xl mx-auto">
+    <main class="page-container downloads-container">
         <!-- 页面头部 -->
         <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold mb-4">
+            <h1 class="text-2xl font-bold mb-4">
                 <span class="glow-text">📥 下载管理</span>
             </h1>
-            <p class="text-lg text-muted">管理您的种子下载任务，实时查看下载进度 🚀</p>
+            <p class="text-sm text-muted">管理您的种子下载任务，实时查看下载进度 🚀</p>
         </div>
         
         <!-- 操作栏 -->
@@ -195,27 +195,27 @@
         <div class="glass-card p-4 mb-6">
             <div class="flex justify-around items-center">
                 <div class="text-center">
-                    <div class="speed-indicator text-2xl font-bold">
+                    <div class="speed-indicator text-lg font-bold">
                         <i class="fas fa-arrow-down speed-arrow-down"></i>
                         <span id="global-download-speed">0 MB/s</span>
                     </div>
                     <p class="text-sm text-muted mt-1">下载速度</p>
                 </div>
                 <div class="text-center">
-                    <div class="speed-indicator text-2xl font-bold">
+                    <div class="speed-indicator text-lg font-bold">
                         <i class="fas fa-arrow-up speed-arrow-up"></i>
                         <span id="global-upload-speed">0 MB/s</span>
                     </div>
                     <p class="text-sm text-muted mt-1">上传速度</p>
                 </div>
                 <div class="text-center">
-                    <div class="text-2xl font-bold">
+                    <div class="text-lg font-bold">
                         <span id="active-torrents">0</span>
                     </div>
                     <p class="text-sm text-muted mt-1">活动任务</p>
                 </div>
                 <div class="text-center">
-                    <div class="text-2xl font-bold">
+                    <div class="text-lg font-bold">
                         <span id="total-ratio">0.00</span>
                     </div>
                     <p class="text-sm text-muted mt-1">分享率</p>
@@ -229,7 +229,7 @@
             <div class="empty-state flex-center" style="min-height: 400px;">
                 <div class="text-center">
                     <i class="fas fa-spinner fa-spin empty-icon text-6xl mb-4"></i>
-                    <p class="text-xl text-muted">🔄 正在加载下载列表...</p>
+                    <p class="text-lg text-muted">🔄 正在加载下载列表...</p>
                 </div>
             </div>
         </div>
@@ -239,7 +239,7 @@
     <div id="addTorrentModal" class="modal hidden">
         <div class="modal-content max-w-2xl">
             <div class="modal-header">
-                <h3 class="text-xl font-semibold">➕ 添加新种子</h3>
+                <h3 class="text-lg font-semibold">➕ 添加新种子</h3>
                 <button onclick="closeAddTorrent()" class="modal-close">
                     <i class="fas fa-times"></i>
                 </button>

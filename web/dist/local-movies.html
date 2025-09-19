@@ -51,13 +51,13 @@
     <!-- 导航栏将由modern-nav.js自动插入 -->
     
     <!-- 主内容区 -->
-    <main class="movies-container max-w-7xl mx-auto">
+    <main class="page-container movies-container">
         <!-- 页面头部 -->
         <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold mb-4">
+            <h1 class="text-2xl font-bold mb-4">
                 <span class="glow-text">📁 本地影片库</span>
             </h1>
-            <p class="text-lg text-muted">管理您的本地影片收藏，支持自动扫描和智能分类 🎬</p>
+            <p class="text-sm text-muted">管理您的本地影片收藏，支持自动扫描和智能分类 🎬</p>
         </div>
         
         <!-- 统计信息 -->
@@ -262,7 +262,7 @@
         function renderStats(stats) {
             const container = document.getElementById('statsContainer');
             if (!container) return;
-            
+
             const statCards = [
                 {
                     title: '📚 影片总数',
@@ -272,17 +272,17 @@
                 },
                 {
                     title: '💾 总大小',
-                    value: formatFileSize(stats.total_size || 0),
+                    value: calculateTotalSize(),
                     icon: 'fas fa-hard-drive'
                 },
                 {
                     title: '👤 女优数',
-                    value: stats.total_actresses || 0,
+                    value: stats.actress_total || 0,
                     icon: 'fas fa-users'
                 },
                 {
                     title: '⏰ 最后扫描',
-                    value: stats.last_scan || '从未',
+                    value: stats.last_scan_time ? formatDateTime(stats.last_scan_time) : '从未',
                     icon: 'fas fa-clock'
                 }
             ];
@@ -291,7 +291,33 @@
                 components.createStatCard(stat.title, stat.value, stat.icon, stat.trend)
             ).join('');
         }
-        
+
+        // 计算总大小
+        function calculateTotalSize() {
+            if (!allMovies || allMovies.length === 0) {
+                return formatFileSize(0);
+            }
+            const totalBytes = allMovies.reduce((sum, movie) => sum + (movie.size || 0), 0);
+            return formatFileSize(totalBytes);
+        }
+
+        // 格式化日期时间
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '从未';
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (error) {
+                return dateStr;
+            }
+        }
+
         // 加载影片
         async function loadMovies() {
             try {
@@ -303,6 +329,8 @@
                     filteredMovies = [...allMovies];
                     renderMovies();
                     updateCount();
+                    // 重新加载统计信息以更新总大小
+                    loadStats();
                 }
             } catch (error) {
                 console.error('加载影片失败:', error);

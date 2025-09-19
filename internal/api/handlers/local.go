@@ -254,9 +254,7 @@ func (h *LocalHandler) ServeImage(c *gin.Context) {
 		return
 	}
 
-
-	// Gin框架可能已经自动解码了参数，我们先尝试直接使用
-	// 如果文件不存在，再尝试解码
+	// Gin框架已经自动解码了URL参数，直接使用
 	decodedPath := imagePath
 
 	// 构建完整的文件路径

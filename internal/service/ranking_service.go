@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"strings"
 	"time"
 
@@ -16,6 +16,7 @@ type RankingService struct {
 	rankingCrawler *crawler.RankingCrawler
 	rankingRepo    repo.RankingRepository
 	localMovieRepo repo.LocalMovieRepository
+	logService     *LogService
 	stopChan       chan struct{}
 	crawlScheduled bool
 	checkScheduled bool
@@ -26,18 +27,22 @@ func NewRankingService(
 	config *crawler.CrawlerConfig,
 	rankingRepo repo.RankingRepository,
 	localMovieRepo repo.LocalMovieRepository,
+	logService *LogService,
 ) *RankingService {
 	return &RankingService{
 		rankingCrawler: crawler.NewRankingCrawler(config),
 		rankingRepo:    rankingRepo,
 		localMovieRepo: localMovieRepo,
+		logService:     logService,
 		stopChan:       make(chan struct{}),
 	}
 }
 
 // Start 启动服务
 func (rs *RankingService) Start() {
-	log.Printf("[排行榜服务] 启动服务")
+	if rs.logService != nil {
+		rs.logService.LogInfo("crawler", "ranking-service", "排行榜服务启动")
+	}
 
 	// 启动定时爬取任务（每天中午12:00）
 	if !rs.crawlScheduled {
@@ -55,19 +60,25 @@ func (rs *RankingService) Start() {
 	go func() {
 		ctx := context.Background()
 		if rs.shouldCrawlToday() {
-			log.Printf("[排行榜服务] 执行初始爬取")
+			if rs.logService != nil {
+				rs.logService.LogInfo("crawler", "ranking-service", "执行初始爬取")
+			}
 			rs.CrawlAndSaveRankings(ctx)
 		}
 
 		// 执行一次检查
-		log.Printf("[排行榜服务] 执行初始本地检查")
+		if rs.logService != nil {
+			rs.logService.LogInfo("crawler", "ranking-service", "执行初始本地检查")
+		}
 		rs.CheckLocalExists(ctx, 100)
 	}()
 }
 
 // Stop 停止服务
 func (rs *RankingService) Stop() {
-	log.Printf("[排行榜服务] 停止服务")
+	if rs.logService != nil {
+		rs.logService.LogInfo("crawler", "ranking-service", "排行榜服务停止")
+	}
 	close(rs.stopChan)
 }
 
@@ -82,7 +93,9 @@ func (rs *RankingService) startCrawlScheduler() {
 			now := time.Now()
 			// 检查是否是中午12:00
 			if now.Hour() == 12 && now.Minute() == 0 {
-				log.Printf("[排行榜服务] 定时爬取开始")
+				if rs.logService != nil {
+					rs.logService.LogInfo("crawler", "ranking-service", "定时爬取开始")
+				}
 				ctx := context.Background()
 				rs.CrawlAndSaveRankings(ctx)
 			}
@@ -100,7 +113,9 @@ func (rs *RankingService) startCheckScheduler() {
 	for {
 		select {
 		case <-ticker.C:
-			log.Printf("[排行榜服务] 定时检查本地存在开始")
+			if rs.logService != nil {
+				rs.logService.LogInfo("crawler", "ranking-service", "定时检查本地存在开始")
+			}
 			ctx := context.Background()
 			rs.CheckLocalExists(ctx, 100)
 		case <-rs.stopChan:
@@ -111,12 +126,16 @@ func (rs *RankingService) startCheckScheduler() {
 
 // CrawlAndSaveRankings 爬取并保存排行榜
 func (rs *RankingService) CrawlAndSaveRankings(ctx context.Context) error {
-	log.Printf("[排行榜服务] 开始爬取所有排行榜")
+	if rs.logService != nil {
+		rs.logService.LogInfo("crawler", "ranking-service", "开始爬取所有排行榜")
+	}
 
 	// 爬取所有排行榜
 	rankings, err := rs.rankingCrawler.CrawlAllRankings(ctx)
 	if err != nil {
-		log.Printf("[排行榜服务] 爬取失败: %v", err)
+		if rs.logService != nil {
+			rs.logService.LogError("crawler", "ranking-service", fmt.Sprintf("爬取失败: %v", err))
+		}
 		return err
 	}
 
@@ -132,13 +151,17 @@ func (rs *RankingService) CrawlAndSaveRankings(ctx context.Context) error {
 		// 清理该类型今天的旧数据（避免重复数据）
 		todayStart := time.Date(crawledAt.Year(), crawledAt.Month(), crawledAt.Day(), 0, 0, 0, 0, crawledAt.Location())
 		if err := rs.rankingRepo.ClearOldRankings(rankType, todayStart.Add(24*time.Hour)); err != nil {
-			log.Printf("[排行榜服务] 清理 %s 今天的旧数据失败: %v", rankType, err)
+			if rs.logService != nil {
+				rs.logService.LogError("crawler", "ranking-service", fmt.Sprintf("清理 %s 今天的旧数据失败: %v", rankType, err))
+			}
 		}
 
 		// 同时清理过期数据（保留最近7天的数据）
 		keepTime := crawledAt.AddDate(0, 0, -7)
 		if err := rs.rankingRepo.ClearOldRankings(rankType, keepTime); err != nil {
-			log.Printf("[排行榜服务] 清理 %s 过期数据失败: %v", rankType, err)
+			if rs.logService != nil {
+				rs.logService.LogError("crawler", "ranking-service", fmt.Sprintf("清理 %s 过期数据失败: %v", rankType, err))
+			}
 		}
 
 		// 转换为数据库模型
@@ -157,31 +180,43 @@ func (rs *RankingService) CrawlAndSaveRankings(ctx context.Context) error {
 
 		// 批量保存
 		if err := rs.rankingRepo.BatchCreate(rankingModels); err != nil {
-			log.Printf("[排行榜服务] 保存 %s 排行榜失败: %v", rankType, err)
+			if rs.logService != nil {
+				rs.logService.LogError("crawler", "ranking-service", fmt.Sprintf("保存 %s 排行榜失败: %v", rankType, err))
+			}
 			continue
 		}
 
 		totalSaved += len(rankingModels)
-		log.Printf("[排行榜服务] 保存 %s 排行榜成功，共 %d 条", rankType, len(rankingModels))
+		if rs.logService != nil {
+			rs.logService.LogInfo("crawler", "ranking-service", fmt.Sprintf("保存 %s 排行榜成功，共 %d 条", rankType, len(rankingModels)))
+		}
 	}
 
-	log.Printf("[排行榜服务] 爬取完成，共保存 %d 条记录", totalSaved)
+	if rs.logService != nil {
+		rs.logService.LogInfo("crawler", "ranking-service", fmt.Sprintf("爬取完成，共保存 %d 条记录", totalSaved))
+	}
 	return nil
 }
 
 // CheckLocalExists 检查本地存在状态
 func (rs *RankingService) CheckLocalExists(ctx context.Context, batchSize int) error {
-	log.Printf("[排行榜服务] 开始检查本地存在状态")
+	if rs.logService != nil {
+		rs.logService.LogInfo("crawler", "ranking-service", "开始检查本地存在状态")
+	}
 
 	// 获取需要检查的记录
 	pendingRankings, err := rs.rankingRepo.GetPendingCheck(batchSize)
 	if err != nil {
-		log.Printf("[排行榜服务] 获取待检查记录失败: %v", err)
+		if rs.logService != nil {
+			rs.logService.LogError("crawler", "ranking-service", fmt.Sprintf("获取待检查记录失败: %v", err))
+		}
 		return err
 	}
 
 	if len(pendingRankings) == 0 {
-		log.Printf("[排行榜服务] 没有需要检查的记录")
+		if rs.logService != nil {
+			rs.logService.LogInfo("crawler", "ranking-service", "没有需要检查的记录")
+		}
 		return nil
 	}
 
@@ -194,7 +229,9 @@ func (rs *RankingService) CheckLocalExists(ctx context.Context, batchSize int) e
 
 		// 更新状态
 		if err := rs.rankingRepo.UpdateLocalExists(ranking.ID, exists); err != nil {
-			log.Printf("[排行榜服务] 更新 %s 本地存在状态失败: %v", ranking.Code, err)
+			if rs.logService != nil {
+				rs.logService.LogError("crawler", "ranking-service", fmt.Sprintf("更新 %s 本地存在状态失败: %v", ranking.Code, err))
+			}
 			continue
 		}
 
@@ -207,7 +244,9 @@ func (rs *RankingService) CheckLocalExists(ctx context.Context, batchSize int) e
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	log.Printf("[排行榜服务] 检查完成，共检查 %d 条，本地存在 %d 条", checkedCount, existsCount)
+	if rs.logService != nil {
+		rs.logService.LogInfo("crawler", "ranking-service", fmt.Sprintf("检查完成，共检查 %d 条，本地存在 %d 条", checkedCount, existsCount))
+	}
 	return nil
 }
 
@@ -223,7 +262,9 @@ func (rs *RankingService) checkLocalMovieExists(code string) bool {
 	// 从本地影视库检查
 	localMovies, _, err := rs.localMovieRepo.List(0, 1000, "") // 获取所有本地影片，不按女优筛选
 	if err != nil {
-		log.Printf("[排行榜服务] 获取本地影片列表失败: %v", err)
+		if rs.logService != nil {
+			rs.logService.LogError("crawler", "ranking-service", fmt.Sprintf("获取本地影片列表失败: %v", err))
+		}
 		return false
 	}
 
@@ -357,12 +398,16 @@ func (rs *RankingService) GetRankingStats() (map[string]interface{}, error) {
 
 // TriggerManualCrawl 手动触发爬取
 func (rs *RankingService) TriggerManualCrawl(ctx context.Context) error {
-	log.Printf("[排行榜服务] 手动触发爬取")
+	if rs.logService != nil {
+		rs.logService.LogInfo("crawler", "ranking-service", "手动触发爬取")
+	}
 	return rs.CrawlAndSaveRankings(ctx)
 }
 
 // TriggerManualCheck 手动触发本地检查
 func (rs *RankingService) TriggerManualCheck(ctx context.Context) error {
-	log.Printf("[排行榜服务] 手动触发本地检查")
+	if rs.logService != nil {
+		rs.logService.LogInfo("crawler", "ranking-service", "手动触发本地检查")
+	}
 	return rs.CheckLocalExists(ctx, 200)
 }

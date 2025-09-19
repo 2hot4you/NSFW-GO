@@ -22,6 +22,13 @@ type TelegramMessage struct {
 	ParseMode string `json:"parse_mode"`
 }
 
+type TelegramPhoto struct {
+	ChatID    string `json:"chat_id"`
+	Photo     string `json:"photo"`
+	Caption   string `json:"caption"`
+	ParseMode string `json:"parse_mode"`
+}
+
 func NewTelegramService(token, chatID string, enabled bool) *TelegramService {
 	return &TelegramService{
 		token:   token,
@@ -138,37 +145,211 @@ func (s *TelegramService) formatMessage(messageType string, data map[string]inte
 
 func (s *TelegramService) sendMessage(text string) error {
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", s.token)
-	
+
 	msg := TelegramMessage{
 		ChatID:    s.chatID,
 		Text:      text,
 		ParseMode: "Markdown",
 	}
-	
+
 	jsonData, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("marshal message failed: %w", err)
 	}
-	
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("create request failed: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("send request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("telegram API returned status %d", resp.StatusCode)
+		body, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("telegram API returned status %d: %s", resp.StatusCode, string(body))
 	}
-	
+
 	return nil
+}
+
+// sendPhoto 发送图片消息
+func (s *TelegramService) sendPhoto(photoURL, caption string) error {
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendPhoto", s.token)
+
+	msg := TelegramPhoto{
+		ChatID:    s.chatID,
+		Photo:     photoURL,
+		Caption:   caption,
+		ParseMode: "Markdown",
+	}
+
+	jsonData, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("marshal photo message failed: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("create photo request failed: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("send photo request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("telegram photo API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// SendDownloadNotification 发送增强的下载通知（包含图片）
+func (s *TelegramService) SendDownloadNotification(code, title, coverURL, size, tracker string) error {
+	if !s.enabled || s.token == "" || s.chatID == "" {
+		return nil
+	}
+
+	// 构建详细的消息
+	var message strings.Builder
+	message.WriteString("🚀 *开始下载新影片*\n\n")
+	message.WriteString(fmt.Sprintf("🔖 *番号*: `%s`\n", code))
+
+	if title != "" {
+		// 限制标题长度，避免消息过长
+		if len(title) > 100 {
+			title = title[:100] + "..."
+		}
+		message.WriteString(fmt.Sprintf("📝 *标题*: %s\n", title))
+	}
+
+	if size != "" {
+		message.WriteString(fmt.Sprintf("💾 *大小*: %s\n", size))
+	}
+
+	if tracker != "" {
+		message.WriteString(fmt.Sprintf("🌐 *来源*: %s\n", tracker))
+	}
+
+	message.WriteString(fmt.Sprintf("🕐 *时间*: %s\n", time.Now().Format("2006-01-02 15:04:05")))
+	message.WriteString("\n✨ 任务已添加到下载队列")
+
+	// 如果有封面图片，发送图片消息
+	if coverURL != "" && strings.HasPrefix(coverURL, "http") {
+		return s.sendPhoto(coverURL, message.String())
+	} else {
+		// 没有图片时发送普通文本消息
+		return s.sendMessage(message.String())
+	}
+}
+
+// SendDownloadCompleteNotification 发送下载完成通知
+func (s *TelegramService) SendDownloadCompleteNotification(code, title, filePath string, fileSize int64) error {
+	if !s.enabled || s.token == "" || s.chatID == "" {
+		return nil
+	}
+
+	var message strings.Builder
+	message.WriteString("✅ *下载完成*\n\n")
+	message.WriteString(fmt.Sprintf("🔖 *番号*: `%s`\n", code))
+
+	if title != "" {
+		if len(title) > 100 {
+			title = title[:100] + "..."
+		}
+		message.WriteString(fmt.Sprintf("📝 *标题*: %s\n", title))
+	}
+
+	if fileSize > 0 {
+		sizeGB := float64(fileSize) / 1024 / 1024 / 1024
+		message.WriteString(fmt.Sprintf("💾 *大小*: %.2f GB\n", sizeGB))
+	}
+
+	if filePath != "" {
+		message.WriteString(fmt.Sprintf("📁 *路径*: %s\n", filePath))
+	}
+
+	message.WriteString(fmt.Sprintf("🕐 *完成时间*: %s\n", time.Now().Format("2006-01-02 15:04:05")))
+	message.WriteString("\n🎉 已保存到本地影片库")
+
+	return s.sendMessage(message.String())
+}
+
+// SendDownloadErrorNotification 发送下载失败通知
+func (s *TelegramService) SendDownloadErrorNotification(code, title, errorMsg string) error {
+	if !s.enabled || s.token == "" || s.chatID == "" {
+		return nil
+	}
+
+	var message strings.Builder
+	message.WriteString("❌ *下载失败*\n\n")
+	message.WriteString(fmt.Sprintf("🔖 *番号*: `%s`\n", code))
+
+	if title != "" {
+		if len(title) > 100 {
+			title = title[:100] + "..."
+		}
+		message.WriteString(fmt.Sprintf("📝 *标题*: %s\n", title))
+	}
+
+	if errorMsg != "" {
+		// 限制错误信息长度
+		if len(errorMsg) > 200 {
+			errorMsg = errorMsg[:200] + "..."
+		}
+		message.WriteString(fmt.Sprintf("🚫 *错误*: %s\n", errorMsg))
+	}
+
+	message.WriteString(fmt.Sprintf("🕐 *时间*: %s\n", time.Now().Format("2006-01-02 15:04:05")))
+	message.WriteString("\n💡 您可以稍后重试下载")
+
+	return s.sendMessage(message.String())
+}
+
+// SendSubscriptionNotification 发送订阅下载通知
+func (s *TelegramService) SendSubscriptionNotification(rankType string, downloadCount int, successCount int) error {
+	if !s.enabled || s.token == "" || s.chatID == "" {
+		return nil
+	}
+
+	var rankTypeName string
+	switch rankType {
+	case "daily":
+		rankTypeName = "📅 日榜"
+	case "weekly":
+		rankTypeName = "📆 周榜"
+	case "monthly":
+		rankTypeName = "🗓️ 月榜"
+	default:
+		rankTypeName = rankType
+	}
+
+	var message strings.Builder
+	message.WriteString("📋 *订阅下载完成*\n\n")
+	message.WriteString(fmt.Sprintf("📊 *榜单*: %s\n", rankTypeName))
+	message.WriteString(fmt.Sprintf("🚀 *启动任务*: %d 个\n", downloadCount))
+	message.WriteString(fmt.Sprintf("✅ *成功启动*: %d 个\n", successCount))
+
+	if successCount < downloadCount {
+		message.WriteString(fmt.Sprintf("⚠️ *跳过*: %d 个\n", downloadCount-successCount))
+	}
+
+	message.WriteString(fmt.Sprintf("🕐 *时间*: %s\n", time.Now().Format("2006-01-02 15:04:05")))
+
+	return s.sendMessage(message.String())
 }
 
 func (s *TelegramService) TestConnection() error {
