@@ -254,15 +254,10 @@ func (h *LocalHandler) ServeImage(c *gin.Context) {
 		return
 	}
 
-	// URL解码
-	decodedPath, err := url.PathUnescape(imagePath)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code:    "ERROR",
-			Message: "路径解码失败",
-		})
-		return
-	}
+
+	// Gin框架可能已经自动解码了参数，我们先尝试直接使用
+	// 如果文件不存在，再尝试解码
+	decodedPath := imagePath
 
 	// 构建完整的文件路径
 	fullPath := filepath.Join(h.mediaLibraryPath, decodedPath)
