@@ -110,6 +110,7 @@ NSFW-Go是一个专为管理成人影视内容设计的全栈Web应用，集成�
 | **搜索中心** | http://localhost:8080/search.html | ✅ 运行中 | 统一搜索界面 🆕 |
 | **本地影视库** | http://localhost:8080/local-movies.html | ✅ 运行中 | 本地影片管理 🎨 |
 | **排行榜系统** | http://localhost:8080/rankings.html | ✅ 运行中 | JAVDb排行榜浏览 ✅ |
+| **日志管理** | http://localhost:8080/logs.html | ✅ 运行中 | 系统日志查看 🆕 |
 | **API服务** | http://localhost:8080/api/v1 | ✅ 运行中 | RESTful API |
 | **健康检查** | http://localhost:8080/health | ✅ 运行中 | 服务状态检查 |
 
@@ -178,6 +179,11 @@ POST /api/v1/rankings/check
 
 #### 系统信息
 ```bash
+# 日志管理
+GET /api/v1/logs?category=system&level=info&limit=50
+DELETE /api/v1/logs?category=all
+GET /api/v1/logs/stats
+
 # 系统统计 (包含所有模块数据)
 GET /api/v1/stats
 

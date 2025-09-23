@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"nsfw-go/internal/repo"
 	"nsfw-go/internal/service"
 	"os"
@@ -259,6 +258,7 @@ func (h *LocalHandler) ServeImage(c *gin.Context) {
 
 	// 构建完整的文件路径
 	fullPath := filepath.Join(h.mediaLibraryPath, decodedPath)
+
 
 	// 安全检查：确保路径在媒体库目录内
 	if !strings.HasPrefix(fullPath, h.mediaLibraryPath) {

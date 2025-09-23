@@ -169,6 +169,8 @@ make dev
 - 现代化 Web 界面（深色主题、响应式设计）
 - 性能优化（API 响应：30秒 → 3毫秒，提升 10,000 倍）
 - 种子下载集成（Jackett + qBittorrent 支持）
+- 本地影片封面图片显示服务
+- 统一日志管理系统
 
 ### 开发中功能
 - 增强的种子搜索和下载管理
@@ -181,8 +183,9 @@ make dev
 GET /api/v1/local/movies    # 分页获取本地影片列表
 GET /api/v1/local/stats     # 本地统计信息
 POST /api/v1/local/scan     # 触发手动扫描
+GET /api/v1/local/image/*   # 获取本地影片封面图片
 
-# JAVDb 集成  
+# JAVDb 集成
 GET /api/v1/search/javdb    # 在线搜索 JAVDb
 GET /api/v1/rankings        # 获取排行榜数据
 POST /api/v1/rankings/crawl # 触发手动爬取
@@ -195,6 +198,11 @@ POST /api/v1/torrents/download # 添加种子到 qBittorrent
 GET /api/v1/config          # 获取当前配置
 PUT /api/v1/config          # 更新配置
 POST /api/v1/config/test    # 测试配置设置
+
+# 日志管理
+GET /api/v1/logs            # 获取系统日志
+DELETE /api/v1/logs         # 清空日志
+GET /api/v1/logs/stats      # 获取日志统计
 
 # 系统
 GET /api/v1/stats           # 系统级统计信息
@@ -216,6 +224,7 @@ GET /health                 # 健康检查
 - `web/dist/rankings.html` - JAVDb 排行榜显示
 - `web/dist/config.html` - 系统配置面板
 - `web/dist/downloads.html` - 种子下载管理
+- `web/dist/logs.html` - 系统日志管理
 - `web/dist/test-connections.html` - 配置测试工具
 
 ## 性能特征
@@ -318,6 +327,13 @@ make test    # 运行所有测试
 - 生产环境可访问 `/debug/pprof/` 端点进行实时性能监控
 
 ## 常见问题排查
+
+### 本地影片图片显示问题
+**图片无法显示或404错误**
+- **原因**：URL编码问题，可能存在双重解码或路径不正确
+- **解决**：检查 `ServeImage` 方法，确保Gin框架已自动解码URL参数
+- **测试**：使用 `curl -I` 命令测试图片API端点返回状态
+- **路径**：确认媒体库路径配置正确，文件实际存在
 
 ### 种子下载问题
 **权限拒绝错误**：`file_open error: Permission denied`
