@@ -1,843 +1,92 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏆 影片排行榜 - NSFW-Go</title>
+    <title>排行榜 - NSFW-GO</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="static/css/design-system.css">
     <link rel="stylesheet" href="static/css/components.css">
-    <link rel="stylesheet" href="static/css/tailwind-fixes.css">
-    <style>
-        /* 页面特定样式 */
-        .rankings-container {
-            min-height: calc(100vh - 64px);
-            padding: 2rem 1rem;
-        }
-        
-        .rank-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-            gap: 1.5rem;
-        }
-        
-        @media (max-width: 640px) {
-            .rank-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 1rem;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .rank-grid {
-                grid-template-columns: 1fr;
-                gap: 1rem;
-            }
-        }
-        
-        .rank-badge {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: white;
-            font-size: 16px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            z-index: 20;
-        }
-        
-        .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA500); }
-        .rank-2 { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); }
-        .rank-3 { background: linear-gradient(135deg, #CD7F32, #B87333); }
-        .rank-other { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); }
-        
-        .rank-type-tab {
-            transition: all 0.3s;
-        }
-        
-        .rank-type-tab.active {
-            background: var(--primary-gradient);
-            transform: scale(1.05);
-        }
-    </style>
 </head>
-<body>
-    <!-- 导航栏将由modern-nav.js自动插入 -->
-    
-    <!-- 主内容区 -->
-    <main class="page-container rankings-container">
-        <!-- 页面头部 -->
-        <div class="text-center mb-8">
-            <h1 class="text-2xl font-bold mb-4">
-                <span class="glow-text">🏆 影片排行榜</span>
-            </h1>
-            <p class="text-sm text-muted">JAVDb 热门影片排行，每日更新最受欢迎的作品 🔥</p>
-        </div>
-        
-        <!-- 排行榜类型切换 -->
-        <div class="glass-card p-6 mb-8">
-            <div class="flex flex-wrap gap-3 justify-center">
-                <button onclick="switchRankType('daily')" class="btn btn-primary rank-type-tab active" id="dailyTab">
-                    <i class="fas fa-calendar-day"></i>
-                    <span>📅 日榜</span>
-                </button>
-                <button onclick="switchRankType('weekly')" class="btn btn-secondary rank-type-tab" id="weeklyTab">
-                    <i class="fas fa-calendar-week"></i>
-                    <span>📆 周榜</span>
-                </button>
-                <button onclick="switchRankType('monthly')" class="btn btn-secondary rank-type-tab" id="monthlyTab">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>📊 月榜</span>
-                </button>
-                <button onclick="refreshRankings()" class="btn btn-secondary ml-auto">
-                    <i class="fas fa-sync-alt"></i>
-                    <span>🔄 刷新</span>
-                </button>
+
+<body class="bg-dark text-main font-sans antialiased selection:bg-primary selection:text-white">
+    <div class="flex h-screen overflow-hidden">
+        <!-- 侧边栏容器 -->
+        <div id="sidebar-container"></div>
+
+        <!-- 主内容区 -->
+        <div class="flex-1 flex flex-col h-screen overflow-hidden relative">
+            <!-- 顶部装饰 -->
+            <div
+                class="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none z-0">
             </div>
-            
-            <!-- 统计信息 -->
-            <div class="mt-4 flex flex-wrap gap-4 justify-center text-sm">
-                <div class="badge badge-success">
-                    ✅ 本地已有：<span id="localCount">0</span> 部
+
+            <!-- 滚动内容区 -->
+            <main class="flex-1 overflow-y-auto relative z-10 custom-scrollbar p-6 lg:p-10">
+                <div class="max-w-7xl mx-auto">
+                    <!-- 页面标题 -->
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                        <div>
+                            <h1 class="text-3xl font-bold tracking-tight text-white mb-2">热门排行榜</h1>
+                            <p class="text-muted">发现最受欢迎的影片，实时更新</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button id="refreshRankings" class="btn btn-secondary">
+                                <i class="fas fa-sync-alt mr-2"></i>刷新
+                            </button>
+                            <button id="crawlRankings" class="btn btn-primary">
+                                <i class="fas fa-spider mr-2"></i>手动爬取
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 统计信息 -->
+                    <div id="rankingsStats">
+                        <!-- JS 注入 -->
+                    </div>
+
+                    <!-- 榜单切换 -->
+                    <div class="flex justify-center mb-8">
+                        <div class="bg-white/5 p-1 rounded-full inline-flex">
+                            <button
+                                class="px-6 py-2 rounded-full text-sm font-medium transition-all active bg-primary text-white shadow-lg"
+                                data-rank-type="daily">
+                                日榜
+                            </button>
+                            <button
+                                class="px-6 py-2 rounded-full text-sm font-medium transition-all text-muted hover:text-white hover:bg-white/5"
+                                data-rank-type="weekly">
+                                周榜
+                            </button>
+                            <button
+                                class="px-6 py-2 rounded-full text-sm font-medium transition-all text-muted hover:text-white hover:bg-white/5"
+                                data-rank-type="monthly">
+                                月榜
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 排行榜网格 -->
+                    <div id="rankingsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                        <!-- JS 注入 -->
+                        <!-- 加载占位符 -->
+                        <div class="col-span-full flex justify-center items-center py-20">
+                            <div
+                                class="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin">
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
-                <div class="badge badge-warning">
-                    📥 可下载：<span id="downloadableCount">0</span> 部
-                </div>
-                <div class="badge badge-primary">
-                    ⏰ 更新时间：<span id="updateTime">--</span>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 筛选和搜索 -->
-        <div class="flex flex-col md:flex-row gap-4 mb-6">
-            <div class="flex-1">
-                <div class="relative">
-                    <input 
-                        type="text" 
-                        id="searchInput" 
-                        placeholder="🔍 搜索排行榜..." 
-                        class="input-field pl-10"
-                        onkeyup="filterRankings()"
-                    >
-                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"></i>
-                </div>
-            </div>
-            <div class="flex gap-3">
-                <button onclick="toggleLocalOnly()" class="btn btn-secondary" id="localOnlyBtn">
-                    <i class="fas fa-home"></i>
-                    <span>只看本地</span>
-                </button>
-                <button onclick="batchDownload()" class="btn btn-primary">
-                    <i class="fas fa-download"></i>
-                    <span>批量下载</span>
-                </button>
-            </div>
-        </div>
-        
-        <!-- 排行榜内容 -->
-        <div id="rankingsContainer">
-            <div class="loading-state flex-center" style="min-height: 400px;">
-                <div class="loader"></div>
-                <span class="loading-message ml-3">加载排行榜...</span>
-            </div>
-        </div>
-    </main>
-    
-    <!-- 影片详情模态框 -->
-    <div id="movieDetailModal" class="modal">
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header">
-                <h3 class="modal-title">🎬 影片详情</h3>
-                <button onclick="closeMovieDetail()" class="modal-close">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body" id="movieDetailContent">
-                <!-- 详情内容将动态插入 -->
-            </div>
-            <div class="modal-footer">
-                <button onclick="closeMovieDetail()" class="btn btn-secondary">关闭</button>
-                <button onclick="downloadMovie()" class="btn btn-primary" id="downloadBtn">
-                    <i class="fas fa-download"></i>
-                    下载
-                </button>
-            </div>
+            </main>
         </div>
     </div>
-    
-    <!-- 返回顶部 -->
-    <button id="backToTop" onclick="scrollToTop()" class="fixed bottom-8 right-8 btn btn-primary rounded-full w-12 h-12 hidden">
-        <i class="fas fa-arrow-up"></i>
-    </button>
-    
+
     <script src="static/js/components.js"></script>
-    <script src="static/js/modern-nav.js"></script>
-    <script src="static/js/performance.js"></script>
-    <script>
-        let currentRankType = 'weekly';
-        let allRankings = [];
-        let filteredRankings = [];
-        let localOnlyMode = false;
-        let selectedMovies = new Set();
-        let currentMovie = null;
-        let downloadTasks = new Map(); // 存储下载任务状态
-        let statusUpdateInterval = null; // 状态更新定时器
-        
-        // 页面加载完成
-        document.addEventListener('DOMContentLoaded', function() {
-            loadRankings('weekly');
-            
-            // 启动下载状态定时更新
-            startStatusUpdates();
-            
-            // 监听滚动
-            window.addEventListener('scroll', () => {
-                const backToTop = document.getElementById('backToTop');
-                if (window.scrollY > 300) {
-                    backToTop.classList.remove('hidden');
-                } else {
-                    backToTop.classList.add('hidden');
-                }
-            });
-        });
-        
-        // 页面卸载时清理定时器
-        window.addEventListener('beforeunload', () => {
-            if (statusUpdateInterval) {
-                clearInterval(statusUpdateInterval);
-            }
-        });
-        
-        // 加载排行榜
-        async function loadRankings(type) {
-            const container = document.getElementById('rankingsContainer');
-            container.innerHTML = components.createLoadingState('🏆 加载排行榜中...');
-            
-            try {
-                // 直接获取指定类型的排行榜数据
-                const response = await fetch(`/api/v1/rankings?type=${type}`);
-                const data = await response.json();
-                
-                if (data.success && data.data) {
-                    allRankings = data.data;
-                    // 按排名排序
-                    allRankings.sort((a, b) => a.position - b.position);
-                    filteredRankings = [...allRankings];
-                    renderRankings();
-                    updateStats();
-                    
-                    // 更新时间
-                    document.getElementById('updateTime').textContent = 
-                        new Date().toLocaleTimeString('zh-CN');
-                } else {
-                    throw new Error('加载失败');
-                }
-            } catch (error) {
-                console.error('加载排行榜失败:', error);
-                container.innerHTML = components.createEmptyState(
-                    '😅 加载排行榜失败',
-                    'fa-trophy',
-                    {
-                        label: '重试',
-                        icon: 'fas fa-sync',
-                        onClick: `loadRankings('${type}')`
-                    }
-                );
-            }
-        }
-        
-        // 渲染排行榜
-        function renderRankings() {
-            const container = document.getElementById('rankingsContainer');
-            
-            if (filteredRankings.length === 0) {
-                container.innerHTML = components.createEmptyState(
-                    localOnlyMode ? '😔 本地暂无此榜单影片' : '😔 暂无排行数据',
-                    'fa-trophy'
-                );
-                return;
-            }
-            
-            container.innerHTML = `
-                <div class="rank-grid">
-                    ${filteredRankings.map((movie, index) => createRankCard(movie, index + 1)).join('')}
-                </div>
-            `;
-        }
-        
-        // 创建排行卡片
-        function createRankCard(movie, rank) {
-            const hasLocal = movie.local_exists || false;  // 使用API返回的local_exists字段
-            const isSelected = selectedMovies.has(movie.code);
-            const task = downloadTasks.get(movie.code);
-            
-            return `
-                <div class="glass-card hover-scale relative ${isSelected ? 'ring-2 ring-primary' : ''}">
-                    <!-- 排名徽章 -->
-                    <div class="rank-badge ${rank <= 3 ? `rank-${rank}` : 'rank-other'}">
-                        ${rank <= 3 ? `🏅` : rank}
-                    </div>
-                    
-                    <!-- 选择框（只有不在本地库的才显示） -->
-                    ${!hasLocal && !task ? `
-                        <div class="absolute top-2 right-2 z-10">
-                            <input type="checkbox" 
-                                   ${isSelected ? 'checked' : ''} 
-                                   onchange="toggleSelection('${movie.code}')"
-                                   class="w-5 h-5 rounded cursor-pointer">
-                        </div>
-                    ` : ''}
-                    
-                    <!-- 影片内容 -->
-                    <div class="cursor-pointer" onclick="viewMovieDetail('${movie.code}')">
-                        <div class="relative overflow-hidden" style="aspect-ratio: 3/4;">
-                            ${movie.cover_url ? `
-                                <img src="${movie.cover_url}" alt="${movie.title}" 
-                                     class="w-full h-full object-cover" loading="lazy">
-                            ` : `
-                                <div class="skeleton-image"></div>
-                            `}
-                            
-                            <!-- 状态标签 -->
-                            <div class="absolute bottom-2 left-2 right-2 flex justify-between items-end">
-                                ${getStatusBadge(hasLocal, task)}
-                                ${movie.is_hot ? `
-                                    <span class="badge badge-danger">🔥 热门</span>
-                                ` : ''}
-                                ${movie.is_new ? `
-                                    <span class="badge badge-warning">🆕 新作</span>
-                                ` : ''}
-                            </div>
-                        </div>
-                        
-                        <div class="p-4">
-                            <h3 class="font-semibold text-sm mb-2 line-clamp-2">
-                                ${movie.title || movie.code}
-                            </h3>
-                            <div class="space-y-1 text-xs text-muted">
-                                <p>🎬 ${movie.code}</p>
-                                ${movie.actresses ? `
-                                    <p>👤 ${movie.actresses.slice(0, 2).join(', ')}</p>
-                                ` : ''}
-                                ${movie.release_date ? `
-                                    <p>📅 ${movie.release_date}</p>
-                                ` : ''}
-                                ${movie.score ? `
-                                    <p>⭐ ${movie.score} 分</p>
-                                ` : ''}
-                            </div>
-                            
-                            <!-- 下载进度条（如果有任务在进行中） -->
-                            ${task && task.status === 'progress' ? `
-                                <div class="mt-2">
-                                    <div class="w-full bg-gray-200 rounded-full h-2">
-                                        <div class="bg-primary-gradient h-2 rounded-full transition-all duration-300" 
-                                             style="width: ${Math.round(task.progress * 100)}%"></div>
-                                    </div>
-                                    <p class="text-xs text-center mt-1">${Math.round(task.progress * 100)}%</p>
-                                </div>
-                            ` : ''}
-                            
-                            <!-- 操作按钮 -->
-                            ${getActionButton(hasLocal, task, movie.code)}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // 获取状态标签
-        function getStatusBadge(hasLocal, task) {
-            if (hasLocal) {
-                return '<span class="badge badge-success">✅ 已在库中</span>';
-            }
-            
-            if (task) {
-                switch (task.status) {
-                    case 'pending':
-                        return '<span class="badge badge-info">⏳ 等待中</span>';
-                    case 'searching':
-                        return '<span class="badge badge-info">🔍 搜索种子</span>';
-                    case 'found':
-                        return '<span class="badge badge-warning">📁 种子已找到</span>';
-                    case 'started':
-                        return '<span class="badge badge-primary">📥 下载中</span>';
-                    case 'progress':
-                        return '<span class="badge badge-primary">📥 下载中</span>';
-                    case 'completed':
-                        return '<span class="badge badge-success">✅ 已完成</span>';
-                    case 'failed':
-                        return '<span class="badge badge-error">❌ 失败</span>';
-                    case 'cancelled':
-                        return '<span class="badge badge-warning">⏹️ 已取消</span>';
-                    default:
-                        return '<span class="badge badge-warning">📥 可下载</span>';
-                }
-            }
-            
-            return '<span class="badge badge-warning">📥 可下载</span>';
-        }
-        
-        // 获取操作按钮
-        function getActionButton(hasLocal, task, code) {
-            if (hasLocal) {
-                return `
-                    <button class="btn btn-secondary btn-sm w-full mt-3" disabled>
-                        ✅ 已在本地
-                    </button>
-                `;
-            }
-            
-            if (task) {
-                switch (task.status) {
-                    case 'pending':
-                    case 'searching':
-                    case 'found':
-                    case 'started':
-                    case 'progress':
-                        return `
-                            <button onclick="event.stopPropagation(); cancelDownload('${code}')" 
-                                    class="btn btn-warning btn-sm w-full mt-3">
-                                <i class="fas fa-stop"></i>
-                                取消下载
-                            </button>
-                        `;
-                    case 'completed':
-                        return `
-                            <button class="btn btn-success btn-sm w-full mt-3" disabled>
-                                ✅ 下载完成
-                            </button>
-                        `;
-                    case 'failed':
-                        return `
-                            <button onclick="event.stopPropagation(); retryDownload('${code}')" 
-                                    class="btn btn-error btn-sm w-full mt-3">
-                                <i class="fas fa-redo"></i>
-                                重试
-                            </button>
-                        `;
-                    case 'cancelled':
-                        return `
-                            <button onclick="event.stopPropagation(); downloadSingle('${code}')" 
-                                    class="btn btn-primary btn-sm w-full mt-3">
-                                <i class="fas fa-download"></i>
-                                重新下载
-                            </button>
-                        `;
-                }
-            }
-            
-            return `
-                <button onclick="event.stopPropagation(); downloadSingle('${code}')" 
-                        class="btn btn-primary btn-sm w-full mt-3">
-                    <i class="fas fa-download"></i>
-                    下载
-                </button>
-            `;
-        }
-        
-        // 切换排行榜类型
-        function switchRankType(type) {
-            currentRankType = type;
-            
-            // 更新标签样式
-            document.querySelectorAll('.rank-type-tab').forEach(tab => {
-                tab.classList.remove('active', 'btn-primary');
-                tab.classList.add('btn-secondary');
-            });
-            
-            const activeTab = document.getElementById(`${type}Tab`);
-            activeTab.classList.add('active', 'btn-primary');
-            activeTab.classList.remove('btn-secondary');
-            
-            // 加载对应排行榜
-            loadRankings(type);
-        }
-        
-        // 刷新排行榜
-        async function refreshRankings() {
-            components.showNotification('🔄 正在全面刷新：排行榜 + 本地库 + 对比检查...', 'info');
-
-            try {
-                // 第一步：触发本地库扫描
-                components.showNotification('📁 正在扫描本地库...', 'info');
-                const scanResponse = await fetch('/api/v1/local/scan', { method: 'POST' });
-                const scanData = await scanResponse.json();
-
-                if (scanData.success) {
-                    components.showNotification('✅ 本地库扫描完成', 'success');
-                } else {
-                    components.showNotification('⚠️ 本地库扫描失败，继续排行榜刷新', 'warning');
-                }
-
-                // 第二步：触发排行榜爬取
-                components.showNotification('🏆 正在刷新排行榜...', 'info');
-                const crawlResponse = await fetch('/api/v1/rankings/crawl', { method: 'POST' });
-                const crawlData = await crawlResponse.json();
-
-                if (crawlData.success === true) {
-                    components.showNotification('✅ 排行榜已更新！', 'success');
-                } else {
-                    components.showNotification('⚠️ 排行榜刷新失败，继续本地检查', 'warning');
-                }
-
-                // 第三步：触发本地存在检查
-                components.showNotification('🔍 正在检查本地存在状态...', 'info');
-                const checkResponse = await fetch('/api/v1/rankings/check', { method: 'POST' });
-                const checkData = await checkResponse.json();
-
-                if (checkData.success === true) {
-                    components.showNotification('✅ 本地存在检查完成！', 'success');
-                } else {
-                    components.showNotification('⚠️ 本地存在检查失败', 'warning');
-                }
-
-                // 第四步：重新加载数据
-                components.showNotification('📊 正在重新加载排行榜数据...', 'info');
-                setTimeout(() => {
-                    loadRankings(currentRankType);
-                    components.showNotification('🎉 全面刷新完成！', 'success');
-                }, 3000); // 给后端服务更多时间完成处理
-
-            } catch (error) {
-                console.error('刷新失败:', error);
-                components.showNotification('😅 刷新过程中出现错误: ' + error.message, 'error');
-            }
-        }
-        
-        // 筛选排行榜
-        function filterRankings() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-
-            filteredRankings = allRankings.filter(movie => {
-                if (localOnlyMode && !movie.local_exists) return false;
-                
-                const title = (movie.title || '').toLowerCase();
-                const code = (movie.code || '').toLowerCase();
-                const actresses = (movie.actresses || []).join(' ').toLowerCase();
-                
-                return title.includes(searchTerm) || 
-                       code.includes(searchTerm) || 
-                       actresses.includes(searchTerm);
-            });
-            
-            renderRankings();
-        }
-        
-        // 切换只看本地
-        function toggleLocalOnly() {
-            localOnlyMode = !localOnlyMode;
-            const btn = document.getElementById('localOnlyBtn');
-            
-            if (localOnlyMode) {
-                btn.classList.remove('btn-secondary');
-                btn.classList.add('btn-primary');
-            } else {
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-secondary');
-            }
-            
-            filterRankings();
-        }
-        
-        // 切换选择
-        function toggleSelection(code) {
-            if (selectedMovies.has(code)) {
-                selectedMovies.delete(code);
-            } else {
-                selectedMovies.add(code);
-            }
-            renderRankings();
-        }
-        
-        // 批量下载
-        function batchDownload() {
-            if (selectedMovies.size === 0) {
-                components.showNotification('😅 请先选择要下载的影片', 'warning');
-                return;
-            }
-            
-            components.showNotification(`🚀 开始批量下载 ${selectedMovies.size} 部影片...`, 'info');
-            
-            // 跳转到下载页面
-            const codes = Array.from(selectedMovies).join(',');
-            window.location.href = `/downloads.html?batch=${codes}`;
-        }
-        
-        // 单个下载 - 使用新的排行榜下载API
-        async function downloadSingle(code) {
-            if (!code) return;
-            
-            // 从排行榜中获取影片信息
-            const movie = allRankings.find(m => m.code === code);
-            
-            components.showNotification('🚀 正在启动下载任务...', 'info');
-            
-            try {
-                const response = await fetch('/api/v1/rankings/download', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        code: code,
-                        title: movie?.title || code,
-                        source: 'manual',
-                        rank_type: currentRankType
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (!response.ok || !data.success) {
-                    throw new Error(data.error || '启动下载任务失败');
-                }
-                
-                // 任务创建成功，添加到本地状态
-                downloadTasks.set(code, {
-                    id: data.data.id,
-                    code: code,
-                    status: data.data.status,
-                    progress: data.data.progress || 0,
-                    error_msg: data.data.error_msg || ''
-                });
-                
-                // 重新渲染界面
-                renderRankings();
-                
-                components.showNotification('✅ 下载任务已启动，正在后台处理...', 'success');
-                
-            } catch (error) {
-                console.error('下载失败:', error);
-                components.showNotification(`❌ 下载失败: ${error.message}`, 'error', 10000);
-            }
-        }
-        
-        // 取消下载
-        async function cancelDownload(code) {
-            const task = downloadTasks.get(code);
-            if (!task) return;
-            
-            try {
-                const response = await fetch(`/api/v1/rankings/download-tasks/${task.id}`, {
-                    method: 'DELETE'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    components.showNotification('⏹️ 任务已取消', 'info');
-                    downloadTasks.set(code, { ...task, status: 'cancelled' });
-                    renderRankings();
-                } else {
-                    throw new Error(data.error || '取消任务失败');
-                }
-            } catch (error) {
-                console.error('取消失败:', error);
-                components.showNotification(`❌ 取消失败: ${error.message}`, 'error');
-            }
-        }
-        
-        // 重试下载
-        async function retryDownload(code) {
-            const task = downloadTasks.get(code);
-            if (!task) return;
-            
-            try {
-                const response = await fetch(`/api/v1/rankings/download-tasks/${task.id}/retry`, {
-                    method: 'POST'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    components.showNotification('🔄 任务已重新启动', 'info');
-                    downloadTasks.set(code, { ...task, status: 'pending', progress: 0, error_msg: '' });
-                    renderRankings();
-                } else {
-                    throw new Error(data.error || '重试任务失败');
-                }
-            } catch (error) {
-                console.error('重试失败:', error);
-                components.showNotification(`❌ 重试失败: ${error.message}`, 'error');
-            }
-        }
-        
-        // 查看影片详情
-        async function viewMovieDetail(code) {
-            currentMovie = allRankings.find(m => m.code === code);
-            if (!currentMovie) return;
-            
-            const modal = document.getElementById('movieDetailModal');
-            const content = document.getElementById('movieDetailContent');
-            
-            content.innerHTML = `
-                <div class="flex flex-col md:flex-row gap-6">
-                    <div class="md:w-1/3">
-                        ${currentMovie.cover_url ? `
-                            <img src="${currentMovie.cover_url}" alt="${currentMovie.title}" 
-                                 class="w-full rounded-lg">
-                        ` : `
-                            <div class="skeleton-image rounded-lg"></div>
-                        `}
-                    </div>
-                    <div class="md:w-2/3 space-y-4">
-                        <h2 class="text-2xl font-bold">${currentMovie.title || currentMovie.code}</h2>
-                        <div class="space-y-2 text-sm">
-                            <p><strong>🎬 番号：</strong>${currentMovie.code}</p>
-                            ${currentMovie.actresses ? `
-                                <p><strong>👤 女优：</strong>${currentMovie.actresses.join(', ')}</p>
-                            ` : ''}
-                            ${currentMovie.release_date ? `
-                                <p><strong>📅 发行日期：</strong>${currentMovie.release_date}</p>
-                            ` : ''}
-                            ${currentMovie.studio ? `
-                                <p><strong>🏢 制作商：</strong>${currentMovie.studio}</p>
-                            ` : ''}
-                            ${currentMovie.duration ? `
-                                <p><strong>⏱️ 时长：</strong>${currentMovie.duration} 分钟</p>
-                            ` : ''}
-                            ${currentMovie.score ? `
-                                <p><strong>⭐ 评分：</strong>${currentMovie.score}</p>
-                            ` : ''}
-                        </div>
-                        ${currentMovie.description ? `
-                            <div>
-                                <h3 class="font-semibold mb-2">📝 简介</h3>
-                                <p class="text-sm text-muted">${currentMovie.description}</p>
-                            </div>
-                        ` : ''}
-                        ${currentMovie.tags ? `
-                            <div>
-                                <h3 class="font-semibold mb-2">🏷️ 标签</h3>
-                                <div class="flex flex-wrap gap-2">
-                                    ${currentMovie.tags.map(tag => `
-                                        <span class="badge badge-primary">${tag}</span>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-            
-            // 更新下载按钮
-            const downloadBtn = document.getElementById('downloadBtn');
-            if (currentMovie.has_local) {
-                downloadBtn.disabled = true;
-                downloadBtn.innerHTML = '✅ 已在本地';
-            } else {
-                downloadBtn.disabled = false;
-                downloadBtn.innerHTML = '<i class="fas fa-download"></i> 下载';
-            }
-            
-            components.openModal('movieDetailModal');
-        }
-        
-        // 关闭详情
-        function closeMovieDetail() {
-            components.closeModal();
-            currentMovie = null;
-        }
-        
-        // 下载影片
-        function downloadMovie() {
-            if (currentMovie && !currentMovie.has_local) {
-                downloadSingle(currentMovie.code);
-            }
-        }
-        
-        // 更新统计
-        function updateStats() {
-            const localCount = allRankings.filter(m => m.local_exists).length;
-            const downloadableCount = allRankings.filter(m => !m.local_exists).length;
-
-            document.getElementById('localCount').textContent = localCount;
-            document.getElementById('downloadableCount').textContent = downloadableCount;
-        }
-        
-        // 启动状态更新定时器
-        function startStatusUpdates() {
-            // 清除现有定时器
-            if (statusUpdateInterval) {
-                clearInterval(statusUpdateInterval);
-            }
-            
-            // 立即执行一次状态更新
-            updateDownloadStatus();
-            
-            // 设置30秒定时更新
-            statusUpdateInterval = setInterval(updateDownloadStatus, 30000);
-        }
-        
-        // 更新下载状态
-        async function updateDownloadStatus() {
-            try {
-                // 获取所有下载任务
-                const response = await fetch('/api/v1/rankings/download-tasks?limit=100');
-                const data = await response.json();
-                
-                if (data.success && data.data.tasks) {
-                    let hasUpdates = false;
-                    
-                    data.data.tasks.forEach(task => {
-                        const existingTask = downloadTasks.get(task.code);
-                        
-                        // 检查状态是否发生变化
-                        if (!existingTask || existingTask.status !== task.status || existingTask.progress !== task.progress) {
-                            hasUpdates = true;
-                        }
-                        
-                        downloadTasks.set(task.code, {
-                            id: task.id,
-                            code: task.code,
-                            status: task.status,
-                            progress: task.progress || 0,
-                            error_msg: task.error_msg || ''
-                        });
-                    });
-                    
-                    // 如果有更新，重新渲染界面
-                    if (hasUpdates) {
-                        renderRankings();
-                        
-                        // 检查是否有新完成的任务
-                        const completedTasks = data.data.tasks.filter(task => task.status === 'completed');
-                        completedTasks.forEach(task => {
-                            if (!downloadTasks.has(task.code) || downloadTasks.get(task.code).status !== 'completed') {
-                                components.showNotification(`🎉 ${task.code} 下载完成！`, 'success', 5000);
-                            }
-                        });
-                        
-                        // 检查是否有新失败的任务
-                        const failedTasks = data.data.tasks.filter(task => task.status === 'failed');
-                        failedTasks.forEach(task => {
-                            if (!downloadTasks.has(task.code) || downloadTasks.get(task.code).status !== 'failed') {
-                                components.showNotification(`❌ ${task.code} 下载失败: ${task.error_msg}`, 'error', 8000);
-                            }
-                        });
-                    }
-                }
-            } catch (error) {
-                console.warn('状态更新失败:', error);
-            }
-        }
-        
-        // 返回顶部
-        function scrollToTop() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-    </script>
-    
-    <!-- 引入外部rankings.js -->
+    <script src="static/js/sidebar.js"></script>
     <script src="static/js/rankings.js"></script>
 </body>
+
 </html>

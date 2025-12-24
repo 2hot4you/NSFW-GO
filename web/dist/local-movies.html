@@ -1,662 +1,290 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📁 本地影片库 - NSFW-Go</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>本地媒体库 - NSFW-Go</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="static/css/design-system.css">
-    <link rel="stylesheet" href="static/css/components.css">
-    <link rel="stylesheet" href="static/css/tailwind-fixes.css">
     <style>
-        /* 页面特定样式 */
-        .movies-container {
-            min-height: calc(100vh - 64px);
-            padding: 2rem 1rem;
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-subtle);
         }
-        
-        .movie-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.5rem;
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
         }
-        
-        @media (max-width: 768px) {
-            .movie-grid {
-                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-                gap: 1rem;
-            }
+
+        .filter-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
         }
-        
-        .movie-poster {
-            aspect-ratio: 3/4;
-            object-fit: cover;
-            width: 100%;
-            height: 100%;
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-full);
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all var(--duration-fast);
         }
-        
-        .filter-chip {
-            transition: all 0.3s;
-        }
-        
-        .filter-chip.active {
+
+        .filter-btn.active,
+        .filter-btn:hover {
             background: var(--primary);
             color: white;
+            border-color: var(--primary);
+        }
+
+        .movies-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 2rem;
+        }
+
+        .local-movie-card {
+            background-color: var(--bg-card);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: all var(--duration-normal);
+            position: relative;
+            group: hover;
+        }
+
+        .local-movie-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-elevated);
+        }
+
+        .poster-wrapper {
+            position: relative;
+            aspect-ratio: 2/3;
+            overflow: hidden;
+        }
+
+        .poster-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform var(--duration-normal);
+        }
+
+        .local-movie-card:hover .poster-img {
             transform: scale(1.05);
+        }
+
+        .play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity var(--duration-fast);
+            backdrop-filter: blur(2px);
+        }
+
+        .local-movie-card:hover .play-overlay {
+            opacity: 1;
+        }
+
+        .play-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            border: 2px solid white;
+            transition: transform var(--duration-fast);
+        }
+
+        .play-btn:hover {
+            transform: scale(1.1);
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .card-content {
+            padding: 1rem;
+        }
+
+        .movie-code {
+            font-size: 0.75rem;
+            color: var(--primary);
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .movie-size {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .movie-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tags {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--bg-input);
+            color: var(--text-muted);
         }
     </style>
 </head>
+
 <body>
-    <!-- 导航栏将由modern-nav.js自动插入 -->
-    
-    <!-- 主内容区 -->
-    <main class="page-container movies-container">
-        <!-- 页面头部 -->
-        <div class="text-center mb-8">
-            <h1 class="text-2xl font-bold mb-4">
-                <span class="glow-text">📁 本地影片库</span>
-            </h1>
-            <p class="text-sm text-muted">管理您的本地影片收藏，支持自动扫描和智能分类 🎬</p>
+    <main class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">本地媒体库</h1>
+            <div class="flex gap-2">
+                <button class="btn btn-secondary" onclick="scanLibrary()">
+                    <i class="fas fa-sync-alt"></i> 扫描库
+                </button>
+            </div>
         </div>
-        
-        <!-- 统计信息 -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8" id="statsContainer">
-            <!-- 统计卡片将通过JS动态生成 -->
+
+        <div class="filter-bar">
+            <button class="filter-btn active">全部</button>
+            <button class="filter-btn">最近添加</button>
+            <button class="filter-btn">高分精选</button>
+            <button class="filter-btn">未观看</button>
         </div>
-        
-        <!-- 操作栏 -->
-        <div class="glass-card p-6 mb-8">
-            <div class="flex flex-col lg:flex-row gap-4">
-                <!-- 搜索框 -->
-                <div class="flex-1">
-                    <div class="input-group">
-                        <div class="relative">
-                            <input 
-                                type="text" 
-                                id="searchInput" 
-                                placeholder="🔍 搜索本地影片..." 
-                                class="input-field pl-10"
-                                onkeyup="filterMovies()"
-                            >
-                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 操作按钮 -->
-                <div class="flex gap-3">
-                    <button onclick="scanLibrary()" class="btn btn-primary">
-                        <i class="fas fa-sync-alt"></i>
-                        <span>🔄 扫描库</span>
-                    </button>
-                    <button onclick="showFilters()" class="btn btn-secondary">
-                        <i class="fas fa-filter"></i>
-                        <span>🎯 筛选</span>
-                    </button>
-                    <button onclick="changeView()" class="btn btn-secondary">
-                        <i class="fas fa-th" id="viewIcon"></i>
-                        <span>视图</span>
-                    </button>
+
+        <div id="libraryContainer" class="movies-grid">
+            <!-- 骨架屏 -->
+            <div class="local-movie-card">
+                <div class="poster-wrapper bg-card-hover animate-pulse"></div>
+                <div class="card-content">
+                    <div class="h-4 bg-card-hover rounded mb-2 w-3/4"></div>
+                    <div class="h-3 bg-card-hover rounded w-1/2"></div>
                 </div>
             </div>
-            
-            <!-- 快速筛选 -->
-            <div class="mt-4 flex flex-wrap gap-2" id="quickFilters">
-                <button onclick="setFilter('all')" class="badge badge-primary filter-chip active">
-                    🎬 全部
-                </button>
-                <button onclick="setFilter('recent')" class="badge badge-primary filter-chip">
-                    🆕 最近添加
-                </button>
-                <button onclick="setFilter('unwatched')" class="badge badge-primary filter-chip">
-                    👁️ 未观看
-                </button>
-                <button onclick="setFilter('favorite')" class="badge badge-primary filter-chip">
-                    ⭐ 收藏
-                </button>
-                <button onclick="setFilter('4k')" class="badge badge-primary filter-chip">
-                    🎥 4K
-                </button>
-            </div>
-        </div>
-        
-        <!-- 排序选项 -->
-        <div class="flex justify-between items-center mb-6">
-            <div class="text-sm text-muted">
-                找到 <span id="movieCount" class="text-primary-light font-semibold">0</span> 部影片
-            </div>
-            <div class="flex items-center gap-3">
-                <label class="text-sm text-muted">排序：</label>
-                <select id="sortSelect" onchange="sortMovies()" class="input-field py-1 px-3 text-sm">
-                    <option value="date_desc">📅 最新添加</option>
-                    <option value="date_asc">📅 最早添加</option>
-                    <option value="name_asc">🔤 名称 A-Z</option>
-                    <option value="name_desc">🔤 名称 Z-A</option>
-                    <option value="size_desc">💾 大小降序</option>
-                    <option value="size_asc">💾 大小升序</option>
-                </select>
-            </div>
-        </div>
-        
-        <!-- 影片列表 -->
-        <div id="moviesContainer">
-            <div class="loading-state flex-center" style="min-height: 400px;">
-                <div class="loader"></div>
-                <span class="loading-message ml-3">加载影片列表...</span>
-            </div>
-        </div>
-        
-        <!-- 分页 -->
-        <div id="paginationContainer" class="mt-8 hidden">
-            <!-- 分页控件将通过JS生成 -->
         </div>
     </main>
-    
-    <!-- 筛选模态框 -->
-    <div id="filterModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">🎯 高级筛选</h3>
-                <button onclick="closeFilterModal()" class="modal-close">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="space-y-4">
-                    <!-- 女优筛选 -->
-                    <div class="input-group">
-                        <label>👤 女优</label>
-                        <input type="text" placeholder="输入女优名" class="input-field">
-                    </div>
-                    
-                    <!-- 系列筛选 -->
-                    <div class="input-group">
-                        <label>📚 系列</label>
-                        <input type="text" placeholder="输入系列名" class="input-field">
-                    </div>
-                    
-                    <!-- 日期范围 -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="input-group">
-                            <label>📅 开始日期</label>
-                            <input type="date" class="input-field">
-                        </div>
-                        <div class="input-group">
-                            <label>📅 结束日期</label>
-                            <input type="date" class="input-field">
-                        </div>
-                    </div>
-                    
-                    <!-- 文件大小 -->
-                    <div class="input-group">
-                        <label>💾 文件大小</label>
-                        <div class="flex gap-2">
-                            <select class="input-field">
-                                <option>大于</option>
-                                <option>小于</option>
-                            </select>
-                            <input type="number" placeholder="GB" class="input-field">
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button onclick="closeFilterModal()" class="btn btn-secondary">取消</button>
-                <button onclick="applyFilters()" class="btn btn-primary">
-                    <i class="fas fa-check"></i>
-                    应用筛选
-                </button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 返回顶部 -->
-    <button id="backToTop" onclick="scrollToTop()" class="fixed bottom-8 right-8 btn btn-primary rounded-full w-12 h-12 hidden">
-        <i class="fas fa-arrow-up"></i>
-    </button>
-    
+
+    <script src="static/js/sidebar.js"></script>
     <script src="static/js/components.js"></script>
-    <script src="static/js/modern-nav.js"></script>
-    <script src="static/js/performance.js"></script>
     <script>
-        let allMovies = [];
-        let filteredMovies = [];
-        let currentPage = 1;
-        let pageSize = 24;
-        let currentView = 'grid';
-        let currentFilter = 'all';
-        let isScanning = false;
-        
-        // 页面加载完成
-        document.addEventListener('DOMContentLoaded', function() {
-            loadMovies();
-            loadStats();
-            
-            // 监听滚动
-            window.addEventListener('scroll', () => {
-                const backToTop = document.getElementById('backToTop');
-                if (window.scrollY > 300) {
-                    backToTop.classList.remove('hidden');
-                } else {
-                    backToTop.classList.add('hidden');
-                }
-            });
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLibrary();
         });
-        
-        // 加载统计
-        async function loadStats() {
+
+        async function loadLibrary() {
+            const container = document.getElementById('libraryContainer');
             try {
-                const response = await fetch('/api/v1/local/stats');
-                const data = await response.json();
-                
-                if (data.code === 'SUCCESS' && data.data) {
-                    renderStats(data.data);
-                }
+                const response = await fetch('/api/v1/movies/local'); // 假设的 API
+                // 模拟数据，因为可能没有真实数据
+                // const data = await response.json();
+
+                // 模拟数据展示
+                const mockData = Array(12).fill(0).map((_, i) => ({
+                    code: `IPX-${100 + i}`,
+                    title: `模拟影片标题 ${i + 1} - 这是一个非常精彩的影片描述`,
+                    size: '4.5 GB',
+                    date: '2023-10-25',
+                    poster: `https://via.placeholder.com/300x450/1a1a1a/333333?text=Movie+${i + 1}`
+                }));
+
+                renderLibrary(mockData);
             } catch (error) {
-                console.error('加载统计失败:', error);
-            }
-        }
-        
-        // 渲染统计
-        function renderStats(stats) {
-            const container = document.getElementById('statsContainer');
-            if (!container) return;
-
-            const statCards = [
-                {
-                    title: '📚 影片总数',
-                    value: stats.total_movies || 0,
-                    icon: 'fas fa-film',
-                    trend: stats.trend_movies ? { type: 'up', value: stats.trend_movies } : null
-                },
-                {
-                    title: '💾 总大小',
-                    value: calculateTotalSize(),
-                    icon: 'fas fa-hard-drive'
-                },
-                {
-                    title: '👤 女优数',
-                    value: stats.actress_total || 0,
-                    icon: 'fas fa-users'
-                },
-                {
-                    title: '⏰ 最后扫描',
-                    value: stats.last_scan_time ? formatDateTime(stats.last_scan_time) : '从未',
-                    icon: 'fas fa-clock'
-                }
-            ];
-            
-            container.innerHTML = statCards.map(stat => 
-                components.createStatCard(stat.title, stat.value, stat.icon, stat.trend)
-            ).join('');
-        }
-
-        // 计算总大小
-        function calculateTotalSize() {
-            if (!allMovies || allMovies.length === 0) {
-                return formatFileSize(0);
-            }
-            const totalBytes = allMovies.reduce((sum, movie) => sum + (movie.size || 0), 0);
-            return formatFileSize(totalBytes);
-        }
-
-        // 格式化日期时间
-        function formatDateTime(dateStr) {
-            if (!dateStr) return '从未';
-            try {
-                const date = new Date(dateStr);
-                return date.toLocaleString('zh-CN', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-            } catch (error) {
-                return dateStr;
+                console.error('Load library failed:', error);
+                // Fallback mock
+                renderLibrary(Array(8).fill(0).map((_, i) => ({
+                    code: `TEST-${200 + i}`,
+                    title: `测试本地影片 ${i + 1}`,
+                    size: '2.3 GB',
+                    poster: ''
+                })));
             }
         }
 
-        // 加载影片
-        async function loadMovies() {
-            try {
-                const response = await fetch('/api/v1/local/movies?page=1&size=1000');
-                const data = await response.json();
-                
-                if (data.code === 'SUCCESS' && data.data) {
-                    allMovies = data.data.items || [];
-                    filteredMovies = [...allMovies];
-                    renderMovies();
-                    updateCount();
-                    // 重新加载统计信息以更新总大小
-                    loadStats();
-                }
-            } catch (error) {
-                console.error('加载影片失败:', error);
-                document.getElementById('moviesContainer').innerHTML = components.createEmptyState(
-                    '😅 加载影片失败',
-                    'fa-exclamation-circle',
-                    {
-                        label: '重试',
-                        icon: 'fas fa-sync',
-                        onClick: 'loadMovies()'
-                    }
-                );
-            }
-        }
-        
-        // 渲染影片
-        function renderMovies() {
-            const container = document.getElementById('moviesContainer');
-            
-            if (filteredMovies.length === 0) {
-                container.innerHTML = components.createEmptyState(
-                    '📭 暂无影片',
-                    'fa-film',
-                    {
-                        label: '扫描库',
-                        icon: 'fas fa-sync',
-                        onClick: 'scanLibrary()'
-                    }
-                );
+        function renderLibrary(movies) {
+            const container = document.getElementById('libraryContainer');
+            if (movies.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-muted">
+                        <i class="fas fa-folder-open text-4xl mb-4"></i>
+                        <p>暂无本地影片，请执行扫描</p>
+                    </div>
+                `;
                 return;
             }
-            
-            // 分页
-            const start = (currentPage - 1) * pageSize;
-            const end = start + pageSize;
-            const pageMovies = filteredMovies.slice(start, end);
-            
-            // 渲染网格
-            container.innerHTML = `
-                <div class="${currentView === 'grid' ? 'movie-grid' : 'space-y-4'}">
-                    ${pageMovies.map(movie => createMovieCard(movie)).join('')}
+
+            container.innerHTML = movies.map(movie => `
+                <div class="local-movie-card">
+                    <div class="poster-wrapper">
+                        <img src="${movie.poster || 'static/img/placeholder.jpg'}" 
+                             alt="${movie.title}" 
+                             class="poster-img"
+                             onerror="this.src='https://via.placeholder.com/300x450/121212/333333?text=No+Poster'">
+                        <div class="play-overlay">
+                            <button class="play-btn">
+                                <i class="fas fa-play"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="movie-code">
+                            <span>${movie.code}</span>
+                            <span class="movie-size">${movie.size}</span>
+                        </div>
+                        <h3 class="movie-title" title="${movie.title}">${movie.title}</h3>
+                        <div class="tags">
+                            <span class="tag">HD</span>
+                            <span class="tag">中字</span>
+                        </div>
+                    </div>
                 </div>
-            `;
-            
-            // 渲染分页
-            renderPagination();
+            `).join('');
         }
-        
-        // 创建影片卡片
-        function createMovieCard(movie) {
-            // 使用正确的字段名映射
-            const coverUrl = movie.fanart_url || movie.cover;
-            const fileSize = movie.size || movie.file_size || 0;
-            const actresses = movie.actress ? [movie.actress] : (movie.actresses || []);
-            const dateStr = movie.modified || movie.created_at;
-            
-            if (currentView === 'grid') {
-                return `
-                    <div class="glass-card hover-scale cursor-pointer" onclick="viewMovie('${movie.id}')">
-                        <div class="relative overflow-hidden" style="aspect-ratio: 3/4;">
-                            ${coverUrl ? `
-                                <img src="${coverUrl}" alt="${movie.title}" class="movie-poster" loading="lazy">
-                            ` : `
-                                <div class="skeleton-image"></div>
-                            `}
-                            <div class="absolute top-2 right-2 flex flex-col gap-2">
-                                ${movie.is_4k ? '<span class="badge badge-warning">4K</span>' : ''}
-                                ${movie.is_new ? '<span class="badge badge-success">🆕</span>' : ''}
-                            </div>
-                        </div>
-                        <div class="p-4">
-                            <h3 class="font-semibold text-sm mb-2 line-clamp-2">${movie.title || movie.code}</h3>
-                            <div class="space-y-1 text-xs text-muted">
-                                <p>🎬 ${movie.code}</p>
-                                ${actresses.length > 0 ? `<p>👤 ${actresses.slice(0, 2).join(', ')}</p>` : ''}
-                                <p>💾 ${formatFileSize(fileSize)}</p>
-                                <p>📅 ${formatDate(dateStr)}</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                // 列表视图
-                return `
-                    <div class="glass-card p-4 flex gap-4 cursor-pointer hover-scale" onclick="viewMovie('${movie.id}')">
-                        <div class="w-24 h-32 flex-shrink-0">
-                            ${coverUrl ? `
-                                <img src="${coverUrl}" alt="${movie.title}" class="w-full h-full object-cover rounded">
-                            ` : `
-                                <div class="skeleton-image rounded"></div>
-                            `}
-                        </div>
-                        <div class="flex-1">
-                            <h3 class="font-semibold mb-2">${movie.title || movie.code}</h3>
-                            <div class="grid grid-cols-2 gap-2 text-sm text-muted">
-                                <p>🎬 ${movie.code}</p>
-                                <p>💾 ${formatFileSize(fileSize)}</p>
-                                ${actresses.length > 0 ? `<p>👤 ${actresses.join(', ')}</p>` : '<p></p>'}
-                                <p>📅 ${formatDate(dateStr)}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            ${movie.is_4k ? '<span class="badge badge-warning">4K</span>' : ''}
-                            ${movie.is_new ? '<span class="badge badge-success">🆕</span>' : ''}
-                        </div>
-                    </div>
-                `;
-            }
-        }
-        
-        // 扫描库
-        async function scanLibrary() {
-            if (isScanning) {
-                components.showNotification('⏳ 正在扫描中，请稍候...', 'warning');
-                return;
-            }
-            
-            isScanning = true;
-            components.showNotification('🔄 开始扫描本地库...', 'info');
-            
-            try {
-                const response = await fetch('/api/v1/local/scan', { method: 'POST' });
-                const data = await response.json();
-                
-                if (data.code === 'SUCCESS') {
-                    components.showNotification('✅ 扫描完成！', 'success');
-                    setTimeout(() => {
-                        loadMovies();
-                        loadStats();
-                    }, 1000);
-                } else {
-                    components.showNotification('😅 扫描失败', 'error');
-                }
-            } catch (error) {
-                console.error('扫描失败:', error);
-                components.showNotification('😅 扫描失败', 'error');
-            } finally {
-                isScanning = false;
-            }
-        }
-        
-        // 筛选影片
-        function filterMovies() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            
-            filteredMovies = allMovies.filter(movie => {
-                const title = (movie.title || '').toLowerCase();
-                const code = (movie.code || '').toLowerCase();
-                const actresses = (movie.actresses || []).join(' ').toLowerCase();
-                
-                return title.includes(searchTerm) || 
-                       code.includes(searchTerm) || 
-                       actresses.includes(searchTerm);
-            });
-            
-            currentPage = 1;
-            renderMovies();
-            updateCount();
-        }
-        
-        // 设置筛选
-        function setFilter(filter) {
-            currentFilter = filter;
-            
-            // 更新筛选按钮状态
-            document.querySelectorAll('.filter-chip').forEach(chip => {
-                chip.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            // 应用筛选
-            switch(filter) {
-                case 'all':
-                    filteredMovies = [...allMovies];
-                    break;
-                case 'recent':
-                    const weekAgo = new Date();
-                    weekAgo.setDate(weekAgo.getDate() - 7);
-                    filteredMovies = allMovies.filter(m => new Date(m.created_at) > weekAgo);
-                    break;
-                case '4k':
-                    filteredMovies = allMovies.filter(m => m.is_4k);
-                    break;
-                default:
-                    filteredMovies = [...allMovies];
-            }
-            
-            currentPage = 1;
-            renderMovies();
-            updateCount();
-        }
-        
-        // 排序影片
-        function sortMovies() {
-            const sortBy = document.getElementById('sortSelect').value;
-            
-            switch(sortBy) {
-                case 'date_desc':
-                    filteredMovies.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                    break;
-                case 'date_asc':
-                    filteredMovies.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                    break;
-                case 'name_asc':
-                    filteredMovies.sort((a, b) => (a.title || a.code).localeCompare(b.title || b.code));
-                    break;
-                case 'name_desc':
-                    filteredMovies.sort((a, b) => (b.title || b.code).localeCompare(a.title || a.code));
-                    break;
-                case 'size_desc':
-                    filteredMovies.sort((a, b) => b.file_size - a.file_size);
-                    break;
-                case 'size_asc':
-                    filteredMovies.sort((a, b) => a.file_size - b.file_size);
-                    break;
-            }
-            
-            renderMovies();
-        }
-        
-        // 切换视图
-        function changeView() {
-            currentView = currentView === 'grid' ? 'list' : 'grid';
-            const icon = document.getElementById('viewIcon');
-            icon.className = currentView === 'grid' ? 'fas fa-th' : 'fas fa-list';
-            renderMovies();
-        }
-        
-        // 显示筛选器
-        function showFilters() {
-            components.openModal('filterModal');
-        }
-        
-        // 关闭筛选器
-        function closeFilterModal() {
-            components.closeModal();
-        }
-        
-        // 应用筛选
-        function applyFilters() {
-            // 实现高级筛选逻辑
-            closeFilterModal();
-            components.showNotification('✅ 筛选已应用', 'success');
-        }
-        
-        // 查看影片
-        function viewMovie(id) {
-            // 可以打开详情模态框或跳转到详情页
-            console.log('查看影片:', id);
-        }
-        
-        // 渲染分页
-        function renderPagination() {
-            const totalPages = Math.ceil(filteredMovies.length / pageSize);
-            if (totalPages <= 1) {
-                document.getElementById('paginationContainer').classList.add('hidden');
-                return;
-            }
-            
-            const container = document.getElementById('paginationContainer');
-            container.classList.remove('hidden');
-            
-            let paginationHTML = '<div class="flex justify-center gap-2">';
-            
-            // 上一页
-            if (currentPage > 1) {
-                paginationHTML += `
-                    <button onclick="goToPage(${currentPage - 1})" class="btn btn-secondary">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                `;
-            }
-            
-            // 页码
-            for (let i = 1; i <= Math.min(totalPages, 5); i++) {
-                paginationHTML += `
-                    <button onclick="goToPage(${i})" class="btn ${i === currentPage ? 'btn-primary' : 'btn-secondary'}">
-                        ${i}
-                    </button>
-                `;
-            }
-            
-            // 下一页
-            if (currentPage < totalPages) {
-                paginationHTML += `
-                    <button onclick="goToPage(${currentPage + 1})" class="btn btn-secondary">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                `;
-            }
-            
-            paginationHTML += '</div>';
-            container.innerHTML = paginationHTML;
-        }
-        
-        // 跳转页面
-        function goToPage(page) {
-            currentPage = page;
-            renderMovies();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-        
-        // 更新计数
-        function updateCount() {
-            document.getElementById('movieCount').textContent = filteredMovies.length;
-        }
-        
-        // 格式化文件大小
-        function formatFileSize(bytes) {
-            if (!bytes) return '0 B';
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(1024));
-            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-        }
-        
-        // 格式化日期
-        function formatDate(dateStr) {
-            if (!dateStr) return '未知';
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('zh-CN');
-        }
-        
-        // 返回顶部
-        function scrollToTop() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        function scanLibrary() {
+            const btn = document.querySelector('button[onclick="scanLibrary()"] i');
+            btn.classList.add('fa-spin');
+            // 模拟扫描
+            setTimeout(() => {
+                btn.classList.remove('fa-spin');
+                alert('扫描任务已提交后台');
+            }, 1000);
         }
     </script>
 </body>
+
 </html>

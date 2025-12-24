@@ -1,484 +1,174 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔍 影片搜索 - NSFW-Go</title>
+    <title>搜索 - NSFW-GO</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="static/css/design-system.css">
     <link rel="stylesheet" href="static/css/components.css">
-    <link rel="stylesheet" href="static/css/tailwind-fixes.css">
-    <style>
-        /* 页面特定样式 */
-        .search-container {
-            min-height: calc(100vh - 64px);
-            padding: 2rem 1rem;
-        }
-        
-        .movie-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1.5rem;
-        }
-        
-        @media (max-width: 640px) {
-            .movie-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-                gap: 1rem;
-            }
-        }
-        
-        .movie-image {
-            aspect-ratio: 3/4;
-            object-fit: cover;
-            width: 100%;
-            height: 100%;
-        }
-        
-        .skeleton-image {
-            aspect-ratio: 3/4;
-            background: linear-gradient(90deg, var(--bg-dark-secondary) 25%, var(--bg-dark-tertiary) 50%, var(--bg-dark-secondary) 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-        }
-    </style>
 </head>
-<body>
-    <!-- 导航栏将由modern-nav.js自动插入 -->
-    
-    <!-- 主内容区 -->
-    <main class="page-container search-container">
-        <!-- 搜索头部 -->
-        <div class="text-center mb-8">
-            <h1 class="text-2xl font-bold mb-4">
-                <span class="glow-text">🔍 影片搜索</span>
-            </h1>
-            <p class="text-sm text-muted">搜索本地库和在线资源，快速找到您想要的影片 🎬</p>
-        </div>
-        
-        <!-- 搜索框 -->
-        <div class="glass-card p-6 mb-8">
-            <div class="max-w-3xl mx-auto">
-                <div class="input-group">
-                    <label class="flex items-center gap-2">
-                        <i class="fas fa-search text-primary-light"></i>
-                        <span>搜索关键词</span>
-                    </label>
-                    <div class="flex gap-3">
-                        <input 
-                            type="text" 
-                            id="searchInput" 
-                            placeholder="🎯 输入番号、女优名或关键词..." 
-                            class="input-field flex-1"
-                            onkeypress="if(event.key === 'Enter') performSearch()"
-                        >
-                        <button onclick="performSearch()" class="btn btn-primary">
-                            <i class="fas fa-search"></i>
-                            <span>搜索</span>
+
+<body class="bg-dark text-main font-sans antialiased selection:bg-primary selection:text-white">
+    <div class="flex h-screen overflow-hidden">
+        <!-- 侧边栏容器 -->
+        <div id="sidebar-container"></div>
+
+        <!-- 主内容区 -->
+        <div class="flex-1 flex flex-col h-screen overflow-hidden relative">
+            <!-- 顶部装饰 -->
+            <div
+                class="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none z-0">
+            </div>
+
+            <!-- 搜索头部 -->
+            <header class="relative z-20 px-6 lg:px-10 pt-6 pb-4 bg-dark/80 backdrop-blur-md border-b border-white/5">
+                <div class="max-w-7xl mx-auto">
+                    <div class="relative">
+                        <i
+                            class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-muted text-lg"></i>
+                        <input type="text" id="search-input"
+                            class="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-lg"
+                            placeholder="搜索番号、标题、演员...">
+                        <button id="search-btn"
+                            class="absolute right-2 top-1/2 transform -translate-y-1/2 btn btn-primary py-2 px-6 rounded-lg">
+                            搜索
                         </button>
-                    </div>
-                </div>
-                
-                <!-- 搜索选项 -->
-                <div class="mt-4 flex flex-wrap gap-3">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="searchLocal" checked class="rounded">
-                        <span class="text-sm">📁 搜索本地库</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="searchOnline" checked class="rounded">
-                        <span class="text-sm">🌐 搜索在线资源</span>
-                    </label>
-                </div>
-                
-                <!-- 热门标签 -->
-                <div class="mt-4">
-                    <p class="text-sm text-muted mb-2">🔥 热门搜索</p>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="quickSearch('SONE')" class="badge badge-primary cursor-pointer hover:scale-105 transition">SONE</button>
-                        <button onclick="quickSearch('SSIS')" class="badge badge-primary cursor-pointer hover:scale-105 transition">SSIS</button>
-                        <button onclick="quickSearch('IPX')" class="badge badge-primary cursor-pointer hover:scale-105 transition">IPX</button>
-                        <button onclick="quickSearch('STARS')" class="badge badge-primary cursor-pointer hover:scale-105 transition">STARS</button>
-                        <button onclick="quickSearch('MIDV')" class="badge badge-primary cursor-pointer hover:scale-105 transition">MIDV</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 搜索类型切换 -->
-        <div class="flex gap-3 mb-6">
-            <button id="localTab" onclick="switchTab('local')" class="btn btn-primary">
-                <i class="fas fa-folder"></i>
-                <span>本地影片</span>
-                <span id="localCount" class="badge badge-success hidden">0</span>
-            </button>
-            <button id="onlineTab" onclick="switchTab('online')" class="btn btn-secondary">
-                <i class="fas fa-globe"></i>
-                <span>在线资源</span>
-                <span id="onlineCount" class="badge badge-warning hidden">0</span>
-            </button>
-        </div>
-        
-        <!-- 搜索结果容器 -->
-        <div id="searchResults">
-            <!-- 初始状态 -->
-            <div class="empty-state flex-center" style="min-height: 400px;">
-                <div class="text-center">
-                    <i class="fas fa-search empty-icon text-6xl mb-4"></i>
-                    <p class="text-xl text-muted">👆 输入关键词开始搜索</p>
-                    <p class="text-sm text-muted mt-2">支持番号、女优名、系列名等多种搜索方式</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 加载更多 -->
-        <div id="loadMoreContainer" class="hidden text-center mt-8">
-            <button onclick="loadMore()" class="btn btn-secondary">
-                <i class="fas fa-plus"></i>
-                加载更多
-            </button>
-        </div>
-    </main>
-    
-    <!-- 返回顶部按钮 -->
-    <button id="backToTop" onclick="scrollToTop()" class="fixed bottom-8 right-8 btn btn-primary rounded-full w-12 h-12 hidden">
-        <i class="fas fa-arrow-up"></i>
-    </button>
-    
-    <script src="static/js/components.js"></script>
-    <script src="static/js/modern-nav.js"></script>
-    <script>
-        // 初始化组件（components 已在 components.js 中定义）
 
-        let currentTab = 'local';
-        let localResults = [];
-        let onlineResults = [];
-        let currentPage = 1;
-        let isLoading = false;
-
-        // 全局函数定义（必须在页面加载前定义，供onclick使用）
-
-        // 快速搜索
-        function quickSearch(keyword) {
-            document.getElementById('searchInput').value = keyword;
-            performSearch();
-        }
-
-        // 执行搜索
-        async function performSearch() {
-            const query = document.getElementById('searchInput').value.trim();
-            if (!query) {
-                components.showNotification('😅 请输入搜索关键词', 'warning');
-                return;
-            }
-
-            const searchLocal = document.getElementById('searchLocal').checked;
-            const searchOnline = document.getElementById('searchOnline').checked;
-
-            if (!searchLocal && !searchOnline) {
-                components.showNotification('😅 请至少选择一个搜索范围', 'warning');
-                return;
-            }
-
-            try {
-                // 重置结果
-                localResults = [];
-                onlineResults = [];
-                currentPage = 1;
-
-                // 显示加载状态
-                const resultsContainer = document.getElementById('searchResults');
-                resultsContainer.innerHTML = components.createLoadingState('🔍 正在搜索...');
-
-                // 执行搜索
-                const promises = [];
-                if (searchLocal) {
-                    promises.push(searchLocalMovies(query));
-                }
-                if (searchOnline) {
-                    promises.push(searchOnlineMovies(query));
-                }
-
-                await Promise.all(promises);
-
-                // 显示第一个有结果的标签
-                if (localResults.length > 0) {
-                    switchTab('local');
-                } else if (onlineResults.length > 0) {
-                    switchTab('online');
-                } else {
-                    resultsContainer.innerHTML = components.createEmptyState(
-                        '😔 没有找到相关影片',
-                        'fa-film',
-                        {
-                            label: '重新搜索',
-                            icon: 'fas fa-search',
-                            onClick: 'document.getElementById("searchInput").focus()'
-                        }
-                    );
-                }
-
-                // 更新计数
-                updateCounts();
-            } catch (error) {
-                console.error('搜索失败:', error);
-                components.showNotification('😅 搜索失败，请重试', 'error');
-                const resultsContainer = document.getElementById('searchResults');
-                resultsContainer.innerHTML = components.createEmptyState(
-                    '😔 搜索失败',
-                    'fa-exclamation-triangle',
-                    {
-                        label: '重新搜索',
-                        icon: 'fas fa-search',
-                        onClick: 'performSearch()'
-                    }
-                );
-            }
-        }
-
-        // 切换标签
-        function switchTab(tab) {
-            currentTab = tab;
-            currentPage = 1;
-
-            // 更新标签样式
-            const localTab = document.getElementById('localTab');
-            const onlineTab = document.getElementById('onlineTab');
-
-            if (tab === 'local') {
-                localTab.className = 'btn btn-primary';
-                onlineTab.className = 'btn btn-secondary';
-                displayResults(localResults);
-            } else {
-                localTab.className = 'btn btn-secondary';
-                onlineTab.className = 'btn btn-primary';
-                displayResults(onlineResults);
-            }
-        }
-
-        // 查看影片详情
-        function viewMovieDetail(code) {
-            if (currentTab === 'local') {
-                window.location.href = `/local-movies.html?code=${code}`;
-            } else {
-                window.open(`https://javdb.com/search?q=${code}`, '_blank');
-            }
-        }
-
-        // 搜索种子
-        async function searchTorrent(code) {
-            try {
-                // 显示下载提示
-                components.showNotification('🎬 正在启动智能下载...', 'info');
-
-                // 获取影片信息（从当前搜索结果中）
-                let title = code; // 默认使用番号作为标题
-                let coverUrl = ''; // 获取封面图片URL
-                const onlineResult = onlineResults.find(movie => movie.code === code);
-                if (onlineResult) {
-                    title = onlineResult.title || code;
-                    coverUrl = onlineResult.cover_url || '';
-                }
-
-                // 调用排行榜下载服务 API（使用与排行榜下载相同的逻辑）
-                const downloadResponse = await fetch('/api/v1/rankings/download', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        code: code,
-                        title: title,
-                        cover_url: coverUrl,  // 传递封面图片URL
-                        source: 'manual',    // 手动下载源
-                        rank_type: 'daily'   // 默认使用日榜类型
-                    })
-                });
-
-                if (!downloadResponse.ok) {
-                    throw new Error('启动下载任务失败');
-                }
-
-                const downloadResult = await downloadResponse.json();
-                if (downloadResult.success) {
-                    components.showNotification('✅ 下载任务已启动，正在后台处理...', 'success');
-                } else {
-                    components.showNotification(`❌ ${downloadResult.error || '启动下载任务失败'}`, 'error');
-                }
-
-            } catch (error) {
-                console.error('启动下载任务失败:', error);
-                components.showNotification(`❌ 下载失败: ${error.message}`, 'error');
-            }
-        }
-
-        // 加载更多
-        function loadMore() {
-            currentPage++;
-            const results = currentTab === 'local' ? localResults : onlineResults;
-            displayResults(results);
-        }
-
-        // 返回顶部
-        function scrollToTop() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-        
-        // 页面加载完成
-        document.addEventListener('DOMContentLoaded', function() {
-            // 检查URL参数
-            const urlParams = new URLSearchParams(window.location.search);
-            const query = urlParams.get('q');
-            if (query) {
-                document.getElementById('searchInput').value = query;
-                performSearch();
-            }
-            
-            // 监听滚动事件
-            window.addEventListener('scroll', () => {
-                const backToTop = document.getElementById('backToTop');
-                if (window.scrollY > 300) {
-                    backToTop.classList.remove('hidden');
-                } else {
-                    backToTop.classList.add('hidden');
-                }
-            });
-        });
-        
-        
-        // 搜索本地影片
-        async function searchLocalMovies(query) {
-            try {
-                const response = await fetch(`/api/v1/local/search?keyword=${encodeURIComponent(query)}`);
-                const data = await response.json();
-                
-                if (data.code === 'SUCCESS' && data.data) {
-                    localResults = data.data;
-                    components.showNotification(`📁 找到 ${localResults.length} 部本地影片`, 'success');
-                }
-            } catch (error) {
-                console.error('搜索本地影片失败:', error);
-                components.showNotification('😅 搜索本地影片失败', 'error');
-            }
-        }
-        
-        // 搜索在线影片
-        async function searchOnlineMovies(query) {
-            try {
-                const response = await fetch(`/api/v1/search/javdb?keyword=${encodeURIComponent(query)}`);
-                const data = await response.json();
-                
-                if (data.code === 'SUCCESS' && data.data) {
-                    onlineResults = data.data;
-                    components.showNotification(`🌐 找到 ${onlineResults.length} 个在线资源`, 'success');
-                }
-            } catch (error) {
-                console.error('搜索在线影片失败:', error);
-                components.showNotification('😅 搜索在线资源失败', 'error');
-            }
-        }
-        
-        // 显示结果
-        function displayResults(results) {
-            const container = document.getElementById('searchResults');
-            
-            if (results.length === 0) {
-                container.innerHTML = components.createEmptyState(
-                    currentTab === 'local' ? '😔 本地库中没有找到' : '😔 在线资源中没有找到',
-                    'fa-film'
-                );
-                return;
-            }
-            
-            // 分页显示
-            const pageSize = 12;
-            const start = 0;
-            const end = Math.min(currentPage * pageSize, results.length);
-            const displayResults = results.slice(start, end);
-            
-            // 渲染影片卡片
-            container.innerHTML = `
-                <div class="movie-grid">
-                    ${displayResults.map(movie => createMovieCard(movie)).join('')}
-                </div>
-            `;
-            
-            // 显示/隐藏加载更多按钮
-            const loadMoreContainer = document.getElementById('loadMoreContainer');
-            if (end < results.length) {
-                loadMoreContainer.classList.remove('hidden');
-            } else {
-                loadMoreContainer.classList.add('hidden');
-            }
-        }
-        
-        // 创建影片卡片
-        function createMovieCard(movie) {
-            const isLocal = currentTab === 'local';
-            const title = movie.title || movie.code || '未知影片';
-            const code = movie.code || '';
-            const actresses = movie.actresses || movie.actors || [];
-            const releaseDate = movie.release_date || movie.date || '';
-            const hasLocal = movie.has_local || false;
-            
-            return `
-                <div class="glass-card hover-scale cursor-pointer" onclick="viewMovieDetail('${code}')">
-                    <div class="relative overflow-hidden" style="aspect-ratio: 3/4;">
-                        ${movie.cover_url ? `
-                            <img src="${movie.cover_url}" alt="${title}" class="movie-image" loading="lazy" onerror="this.src='https://via.placeholder.com/300x400?text=No+Image'">
-                        ` : `
-                            <div class="skeleton-image"></div>
-                        `}
-                        ${isLocal ? `
-                            <div class="absolute top-2 right-2">
-                                <span class="badge badge-success">📁 本地</span>
-                            </div>
-                        ` : hasLocal ? `
-                            <div class="absolute top-2 right-2">
-                                <span class="badge badge-warning">✅ 已有</span>
-                            </div>
-                        ` : ''}
-                    </div>
-                    <div class="p-4">
-                        <h3 class="font-semibold text-sm mb-2 line-clamp-2">${title}</h3>
-                        <div class="space-y-1 text-xs text-muted">
-                            ${code ? `<p>🎬 ${code}</p>` : ''}
-                            ${actresses.length > 0 ? `<p>👤 ${actresses.join(', ')}</p>` : ''}
-                            ${releaseDate ? `<p>📅 ${releaseDate}</p>` : ''}
+                        <!-- 搜索建议下拉框 -->
+                        <div id="suggestions-dropdown"
+                            class="absolute top-full left-0 w-full bg-gray-900 border border-white/10 rounded-xl mt-2 shadow-2xl z-50 hidden overflow-hidden">
+                            <!-- 建议项将通过JS动态插入 -->
                         </div>
-                        ${!isLocal ? `
-                            <div class="mt-3 flex gap-2">
-                                <button onclick="event.stopPropagation(); searchTorrent('${code}')" class="btn btn-sm btn-primary flex-1">
-                                    <i class="fas fa-download"></i>
-                                    下载
-                                </button>
-                            </div>
-                        ` : ''}
+                    </div>
+
+                    <!-- 搜索过滤器 -->
+                    <div class="flex flex-wrap gap-4 mt-4">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="search-local"
+                                class="form-checkbox text-primary rounded bg-white/10 border-white/20" checked>
+                            <span class="text-sm text-gray-300">本地库</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="search-rankings"
+                                class="form-checkbox text-primary rounded bg-white/10 border-white/20" checked>
+                            <span class="text-sm text-gray-300">排行榜</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="search-javdb"
+                                class="form-checkbox text-primary rounded bg-white/10 border-white/20">
+                            <span class="text-sm text-gray-300">JAVDb</span>
+                        </label>
+
+                        <!-- JAVDb 选项 -->
+                        <div id="javdb-options"
+                            class="hidden flex items-center space-x-4 ml-4 border-l border-white/10 pl-4">
+                            <span class="text-xs text-muted">JAVDb 类型:</span>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="javdb-type" value="auto"
+                                    class="form-radio text-primary bg-white/10 border-white/20" checked>
+                                <span class="text-xs text-gray-300">自动</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="javdb-type" value="code"
+                                    class="form-radio text-primary bg-white/10 border-white/20">
+                                <span class="text-xs text-gray-300">番号</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="javdb-type" value="actor"
+                                    class="form-radio text-primary bg-white/10 border-white/20">
+                                <span class="text-xs text-gray-300">演员</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
-            `;
-        }
+            </header>
 
-        // 更新计数
-        function updateCounts() {
-            const localCount = document.getElementById('localCount');
-            const onlineCount = document.getElementById('onlineCount');
+            <!-- 滚动内容区 -->
+            <main class="flex-1 overflow-y-auto relative z-10 custom-scrollbar p-6 lg:p-10">
+                <div class="max-w-7xl mx-auto">
 
-            if (localResults.length > 0) {
-                localCount.textContent = localResults.length;
-                localCount.classList.remove('hidden');
-            } else {
-                localCount.classList.add('hidden');
-            }
+                    <!-- 加载状态 -->
+                    <div id="loading-state" class="hidden flex flex-col items-center justify-center py-20">
+                        <div
+                            class="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-6">
+                        </div>
+                        <p class="text-muted text-lg">正在搜索全网资源...</p>
+                    </div>
 
-            if (onlineResults.length > 0) {
-                onlineCount.textContent = onlineResults.length;
-                onlineCount.classList.remove('hidden');
-            } else {
-                onlineCount.classList.add('hidden');
-            }
-        }
-    </script>
+                    <!-- 空状态 -->
+                    <div id="empty-state" class="flex flex-col items-center justify-center py-32 text-center">
+                        <div class="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6">
+                            <i class="fas fa-search text-4xl text-muted"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mb-2">开始探索</h2>
+                        <p class="text-muted max-w-md">输入番号、标题或演员名字，我们将为您搜索本地库、排行榜以及 JAVDb 在线资源。</p>
+                    </div>
+
+                    <!-- 无结果状态 -->
+                    <div id="no-results" class="hidden flex flex-col items-center justify-center py-32 text-center">
+                        <div class="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6">
+                            <i class="fas fa-ghost text-4xl text-muted"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-white mb-2">未找到结果</h2>
+                        <p class="text-muted max-w-md">尝试使用不同的关键词，或者检查您的拼写。</p>
+                    </div>
+
+                    <!-- 搜索结果容器 -->
+                    <div id="search-results" class="hidden space-y-10">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 id="results-title" class="text-xl font-bold text-white">搜索结果</h2>
+                            <div class="flex gap-4 text-sm text-muted">
+                                <span id="results-stats"></span>
+                                <span class="hidden">本地: <span id="local-count">0</span></span>
+                                <span class="hidden">排行榜: <span id="rankings-count">0</span></span>
+                                <span class="hidden">JAVDb: <span id="javdb-count">0</span></span>
+                            </div>
+                        </div>
+
+                        <!-- 本地结果 -->
+                        <div id="local-results-section" class="hidden">
+                            <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                                <i class="fas fa-hdd text-primary mr-2"></i>本地媒体库
+                            </h3>
+                            <div id="local-movies-grid"
+                                class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                                <!-- JS 注入 -->
+                            </div>
+                        </div>
+
+                        <!-- 排行榜结果 -->
+                        <div id="rankings-results-section" class="hidden">
+                            <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                                <i class="fas fa-chart-line text-yellow-500 mr-2"></i>排行榜
+                            </h3>
+                            <div id="rankings-grid"
+                                class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                                <!-- JS 注入 -->
+                            </div>
+                        </div>
+
+                        <!-- JAVDb 结果 -->
+                        <div id="javdb-results-section" class="hidden">
+                            <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                                <i class="fas fa-globe text-purple-500 mr-2"></i>JAVDb 在线资源
+                            </h3>
+                            <div id="javdb-results-container">
+                                <!-- JS 注入 -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="static/js/components.js"></script>
+    <script src="static/js/sidebar.js"></script>
+    <script src="static/js/search.js"></script>
 </body>
+
 </html>

@@ -3,425 +3,317 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NSFW-Go 智能影视库管理系统</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>NSFW-Go 智能影视库</title>
+    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Design System -->
     <link rel="stylesheet" href="static/css/design-system.css">
-    <link rel="stylesheet" href="static/css/components.css">
-    <link rel="stylesheet" href="static/css/tailwind-fixes.css">
     <style>
-        /* 页面特定的动画效果 */
-        .hero-gradient {
-            background: radial-gradient(ellipse at top, rgba(139, 92, 246, 0.3), transparent 50%),
-                        radial-gradient(ellipse at bottom, rgba(236, 72, 153, 0.2), transparent 50%);
+        /* 仪表盘特定样式 */
+        .hero-section {
+            margin-bottom: 3rem;
+            position: relative;
+            overflow: hidden;
+            border-radius: var(--radius-lg);
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            padding: 3rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
-        .float-animation {
-            animation: float 6s ease-in-out infinite;
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
         }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #fff, #a5b4fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        
-        .glow-effect {
-            box-shadow: 0 0 30px rgba(139, 92, 246, 0.3),
-                        0 0 60px rgba(139, 92, 246, 0.1);
+
+        .hero-subtitle {
+            font-size: 1.125rem;
+            color: #c7d2fe;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .hero-bg-icon {
+            position: absolute;
+            right: -50px;
+            bottom: -50px;
+            font-size: 15rem;
+            color: rgba(255, 255, 255, 0.03);
+            transform: rotate(-15deg);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title i {
+            color: var(--primary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .action-card {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .action-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius-lg);
+            background: var(--bg-card-hover);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--primary);
+            transition: all var(--duration-fast);
+        }
+
+        .action-card:hover .action-icon {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .action-info h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .action-info p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
         }
     </style>
 </head>
-<body class="min-h-screen overflow-x-hidden">
-    <!-- 搜索模态框 -->
-    <div id="searchModal" class="modal">
-        <div class="modal-content" id="searchModalContent">
-            <div class="modal-header">
-                <div class="flex items-center gap-3">
-                    <div class="stat-icon" style="width: 40px; height: 40px;">
+<body>
+    <!-- 侧边栏将由 sidebar.js 注入 -->
+
+    <main class="main-content">
+        <!-- 顶部栏 (移动端菜单开关等) -->
+        <header class="flex items-center justify-between mb-8 hide-mobile">
+            <!-- 面包屑或标题 -->
+            <div class="text-muted text-sm">
+                首页 / 仪表盘
+            </div>
+            <!-- 右侧工具栏 -->
+            <div class="flex items-center gap-4">
+                <button class="btn btn-icon btn-ghost" onclick="checkSystem()">
+                    <i class="fas fa-stethoscope"></i>
+                </button>
+                <button class="btn btn-icon btn-ghost" onclick="refreshStats()">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Hero 区域 -->
+        <section class="hero-section">
+            <div class="hero-content">
+                <h1 class="hero-title">欢迎回来，指挥官</h1>
+                <p class="hero-subtitle">
+                    NSFW-Go 智能影视库管理系统已就绪。目前系统运行平稳，爬虫引擎待命，本地媒体库索引已更新。
+                </p>
+                <div class="mt-6 flex gap-3">
+                    <a href="/search.html" class="btn btn-primary">
+                        <i class="fas fa-search"></i>
+                        立即搜索
+                    </a>
+                    <a href="/local-movies.html" class="btn btn-secondary">
+                        <i class="fas fa-folder-open"></i>
+                        浏览本地库
+                    </a>
+                </div>
+            </div>
+            <i class="fas fa-film hero-bg-icon"></i>
+        </section>
+
+        <!-- 统计概览 -->
+        <section>
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="fas fa-chart-pie"></i>
+                    库藏概览
+                </h2>
+            </div>
+            <div class="stats-grid" id="statsContainer">
+                <!-- 骨架屏 -->
+                <div class="card stat-card">
+                    <div class="icon-wrapper"><i class="fas fa-spinner fa-spin"></i></div>
+                    <div class="value">---</div>
+                    <div class="label">加载中...</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="icon-wrapper"><i class="fas fa-spinner fa-spin"></i></div>
+                    <div class="value">---</div>
+                    <div class="label">加载中...</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="icon-wrapper"><i class="fas fa-spinner fa-spin"></i></div>
+                    <div class="value">---</div>
+                    <div class="label">加载中...</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="icon-wrapper"><i class="fas fa-spinner fa-spin"></i></div>
+                    <div class="value">---</div>
+                    <div class="label">加载中...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 快速入口 -->
+        <section>
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="fas fa-rocket"></i>
+                    快速入口
+                </h2>
+            </div>
+            <div class="actions-grid">
+                <a href="/search.html" class="card action-card">
+                    <div class="action-icon">
                         <i class="fas fa-search"></i>
                     </div>
-                    <h3 class="modal-title">快速搜索</h3>
-                </div>
-                <button onclick="closeSearchModal()" class="modal-close">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div class="modal-body">
-                <div class="input-group">
-                    <input 
-                        type="text" 
-                        id="searchInput"
-                        placeholder="搜索影片、女优或番号..." 
-                        class="input-field"
-                        style="font-size: 1.125rem; padding: 1rem;"
-                    >
-                </div>
-                
-                <!-- 快捷键提示 -->
-                <div class="flex-between text-sm text-muted mb-4">
-                    <div class="flex items-center gap-2">
-                        <kbd class="badge badge-primary">Enter</kbd>
-                        <span>搜索</span>
+                    <div class="action-info">
+                        <h3>全库搜索</h3>
+                        <p>支持番号、女优、关键词智能搜索</p>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <kbd class="badge badge-primary">Esc</kbd>
-                        <span>关闭</span>
+                </a>
+
+                <a href="/rankings.html" class="card action-card">
+                    <div class="action-icon">
+                        <i class="fas fa-trophy"></i>
                     </div>
-                </div>
-                
-                <!-- 搜索提示 -->
-                <div class="glass-card" style="background: rgba(139, 92, 246, 0.1);">
-                    <div class="flex gap-3">
-                        <i class="fas fa-lightbulb text-primary-light mt-1"></i>
-                        <div>
-                            <p class="font-medium mb-2 text-primary-light">搜索小贴士</p>
-                            <ul class="space-y-1 text-sm text-muted">
-                                <li>输入番号：如 "SONE-593" 精确查找</li>
-                                <li>输入女优名：如 "河北彩花" 查找相关影片</li>
-                                <li>输入关键词：如 "SSIS" 模糊搜索</li>
-                            </ul>
-                        </div>
+                    <div class="action-info">
+                        <h3>热门排行</h3>
+                        <p>查看 JAVDb 日榜、周榜趋势</p>
                     </div>
-                </div>
-            </div>
-            
-            <div class="modal-footer">
-                <button onclick="closeSearchModal()" class="btn btn-secondary">
-                    取消
-                </button>
-                <button onclick="performQuickSearch()" class="btn btn-primary">
-                    <i class="fas fa-search"></i>
-                    搜索
-                </button>
-            </div>
-        </div>
-    </div>
+                </a>
 
-
-
-    <!-- 主要内容区域 -->
-    <main class="page-container py-8">
-        <!-- 欢迎标题 -->
-        <section class="text-center mb-12">
-            <div class="fade-in">
-                <h1 class="text-3xl font-bold mb-6">
-                    <span class="glow-text">智能影视库</span>
-                    <span class="block text-primary-light mt-2">管理系统</span>
-                </h1>
-                <p class="text-lg text-secondary max-w-2xl mx-auto leading-relaxed">
-                    基于Go + Vue3的现代化JAV影片管理平台，支持自动爬取、智能分类、下载管理和本地库管理
-                </p>
-            </div>
-        </section>
-
-        <!-- 影片仓库统计 -->
-        <section class="mb-12">
-            <div class="fade-in" style="animation-delay: 0.2s;">
-                <h2 class="text-2xl font-bold mb-8 text-center">
-                    <span class="glow-text">影片仓库</span>
-                    <span class="block text-sm font-normal text-muted mt-2">实时统计影片收藏状况</span>
-                </h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="statsContainer">
-                    <!-- 统计卡片将通过JS动态生成 -->
-                </div>
-            </div>
-        </section>
-            
-        <!-- 快速操作 -->
-        <section class="mb-12">
-            <div class="fade-in" style="animation-delay: 0.4s;">
-                <h2 class="text-2xl font-bold mb-8 text-center">
-                    <span class="glow-text">快速操作</span>
-                    <span class="block text-sm font-normal text-muted mt-2">一键访问主要功能</span>
-                </h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="featuresContainer">
-                    <!-- 功能卡片将通过JS动态生成 -->
-                </div>
-            </div>
-        </section>
-            
-        <!-- 底部操作区域 -->
-        <section>
-            <div class="fade-in" style="animation-delay: 0.6s;">
-                <h2 class="text-2xl font-bold mb-8 text-center">
-                    <span class="glow-text">系统操作</span>
-                    <span class="block text-sm font-normal text-muted mt-2">手动触发和维护功能</span>
-                </h2>
-                
-                <div class="flex justify-center">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
-                        <!-- 刷新统计 -->
-                        <button 
-                            onclick="refreshStats()"
-                            class="btn btn-primary" 
-                            style="padding: 1rem 2rem; font-size: 1.125rem;"
-                        >
-                            <i class="fas fa-sync-alt"></i>
-                            <span>刷新统计</span>
-                        </button>
-
-                        <!-- 系统检查 -->
-                        <button 
-                            onclick="checkSystem()"
-                            class="btn btn-success"
-                            style="padding: 1rem 2rem; font-size: 1.125rem;"
-                        >
-                            <i class="fas fa-stethoscope"></i>
-                            <span>系统检查</span>
-                        </button>
+                <a href="/config.html" class="card action-card">
+                    <div class="action-icon">
+                        <i class="fas fa-cogs"></i>
                     </div>
-                </div>
+                    <div class="action-info">
+                        <h3>系统配置</h3>
+                        <p>管理爬虫、网络及存储设置</p>
+                    </div>
+                </a>
+
+                <a href="/local-movies.html" class="card action-card">
+                    <div class="action-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="action-info">
+                        <h3>本地管理</h3>
+                        <p>整理和维护本地已下载影片</p>
+                    </div>
+                </a>
             </div>
         </section>
     </main>
-        
+
+    <!-- 脚本 -->
+    <script src="static/js/sidebar.js"></script>
+    <script src="static/js/components.js"></script>
     <script>
-        // 页面加载完成后执行
-        document.addEventListener('DOMContentLoaded', function() {
-            // 初始化页面
-            initDashboard();
-            // 加载系统统计
+        document.addEventListener('DOMContentLoaded', () => {
             loadSystemStats();
-            // 渲染功能卡片
-            renderFeatureCards();
         });
 
-        // 初始化Dashboard
-        function initDashboard() {
-            // 设置页面加载进度
-            const progress = document.querySelector('#pageProgress > div');
-            if (progress) {
-                progress.style.width = '30%';
-                setTimeout(() => progress.style.width = '100%', 500);
-                setTimeout(() => document.getElementById('pageProgress').style.display = 'none', 1000);
+        async function loadSystemStats() {
+            const container = document.getElementById('statsContainer');
+            try {
+                const response = await fetch('/api/v1/stats');
+                const data = await response.json();
+                
+                if (data.code === 'SUCCESS' && data.data) {
+                    renderStats(data.data);
+                }
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+                container.innerHTML = '<div class="text-muted p-4">加载统计失败</div>';
             }
         }
 
-        // 渲染统计卡片
-        function renderStatCards(data) {
+        function renderStats(data) {
             const container = document.getElementById('statsContainer');
-            if (!container) return;
-
             const stats = [
-                {
-                    title: '本地影片',
-                    value: data.local_movies || 0,
-                    icon: 'fas fa-folder-open',
-                    trend: null
-                },
-                {
-                    title: '日榜',
-                    value: `${data.daily_local || 0}/${data.daily_total || 0}`,
-                    icon: 'fas fa-calendar-day',
-                    trend: data.daily_local > 0 ? { type: 'up', value: Math.round((data.daily_local / data.daily_total) * 100) } : null
-                },
-                {
-                    title: '周榜',
-                    value: `${data.weekly_local || 0}/${data.weekly_total || 0}`,
-                    icon: 'fas fa-calendar-week',
-                    trend: data.weekly_local > 0 ? { type: 'up', value: Math.round((data.weekly_local / data.weekly_total) * 100) } : null
-                },
-                {
-                    title: '月榜',
-                    value: `${data.monthly_local || 0}/${data.monthly_total || 0}`,
-                    icon: 'fas fa-calendar-alt',
-                    trend: data.monthly_local > 0 ? { type: 'up', value: Math.round((data.monthly_local / data.monthly_total) * 100) } : null
-                }
+                { title: '本地影片', value: data.local_movies || 0, icon: 'fas fa-hdd' },
+                { title: '今日收录', value: data.daily_local || 0, icon: 'fas fa-calendar-day' },
+                { title: '本周收录', value: data.weekly_local || 0, icon: 'fas fa-calendar-week' },
+                { title: '本月收录', value: data.monthly_local || 0, icon: 'fas fa-calendar-alt' }
             ];
 
-            container.innerHTML = stats.map(stat => 
-                components.createStatCard(stat.title, stat.value, stat.icon, stat.trend)
-            ).join('');
-        }
-
-        // 渲染功能卡片
-        function renderFeatureCards() {
-            const container = document.getElementById('featuresContainer');
-            if (!container) return;
-
-            const features = [
-                {
-                    title: '影片搜索',
-                    subtitle: '全库智能搜索',
-                    icon: 'fas fa-search',
-                    color: 'success',
-                    url: '/search.html'
-                },
-                {
-                    title: '本地影视库',
-                    subtitle: '管理本地影片文件',
-                    icon: 'fas fa-folder-open',
-                    color: 'primary',
-                    url: '/local-movies.html'
-                },
-                {
-                    title: '影片排行榜',
-                    subtitle: 'JAVDb热门排行',
-                    icon: 'fas fa-trophy',
-                    color: 'warning',
-                    url: '/rankings.html'
-                },
-                {
-                    title: '系统配置',
-                    subtitle: '配置管理和连接测试',
-                    icon: 'fas fa-cogs',
-                    color: 'danger',
-                    url: '/config.html'
-                }
-            ];
-
-            container.innerHTML = features.map(feature => `
-                <div class="glass-card hover-scale cursor-pointer" onclick="window.location.href='${feature.url}'">
-                    <div class="text-center">
-                        <div class="stat-icon mx-auto mb-4" style="width: 80px; height: 80px; font-size: 2rem;">
-                            <i class="${feature.icon}"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold mb-2">${feature.title}</h3>
-                        <p class="text-muted mb-4">${feature.subtitle}</p>
-                        <button class="btn btn-${feature.color}">
-                            进入
-                            <i class="fas fa-arrow-right"></i>
-                        </button>
+            container.innerHTML = stats.map(stat => `
+                <div class="card stat-card">
+                    <div class="icon-wrapper">
+                        <i class="${stat.icon}"></i>
                     </div>
+                    <div class="value">${stat.value}</div>
+                    <div class="label">${stat.title}</div>
                 </div>
             `).join('');
         }
 
-        // 加载系统统计
-        async function loadSystemStats() {
-            const container = document.getElementById('statsContainer');
-            
-            // 显示加载状态
-            if (container) {
-                container.innerHTML = components.createLoadingState('加载统计数据...');
-            }
-
+        async function checkSystem() {
+            // 简单的系统检查反馈
+            const btn = document.querySelector('button[onclick="checkSystem()"] i');
+            btn.classList.add('fa-spin');
             try {
-                const response = await fetch('/api/v1/stats');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                
-                if (data.code === 'SUCCESS' && data.data) {
-                    // 渲染统计卡片
-                    renderStatCards(data.data);
-                    
-                    // 更新进度条
-                    const progress = document.querySelector('#pageProgress > div');
-                    if (progress) {
-                        progress.style.width = '100%';
-                        setTimeout(() => document.getElementById('pageProgress').style.display = 'none', 500);
-                    }
-                } else {
-                    throw new Error(data.message || '返回数据格式错误');
-                }
-            } catch (error) {
-                console.error('获取系统统计失败:', error);
-                components.showNotification('获取统计数据失败', 'error');
-                
-                // 显示空状态
-                if (container) {
-                    container.innerHTML = components.createEmptyState(
-                        '无法加载统计数据',
-                        'fa-exclamation-circle',
-                        {
-                            label: '重试',
-                            icon: 'fas fa-sync',
-                            onClick: 'loadSystemStats()'
-                        }
-                    );
-                }
+                await fetch('/health');
+                alert('系统运行正常');
+            } catch (e) {
+                alert('系统连接异常');
+            } finally {
+                btn.classList.remove('fa-spin');
             }
         }
 
-        // 刷新统计
         function refreshStats() {
-            components.showNotification('正在刷新统计数据...', 'info');
+            const btn = document.querySelector('button[onclick="refreshStats()"] i');
+            btn.classList.add('fa-spin');
             loadSystemStats().then(() => {
-                components.showNotification('统计数据已更新', 'success');
+                setTimeout(() => btn.classList.remove('fa-spin'), 500);
             });
         }
-
-        // 系统检查
-        async function checkSystem() {
-            components.showNotification('正在进行系统检查...', 'info');
-            
-            try {
-                const response = await fetch('/health');
-                if (response.ok) {
-                    components.showNotification('系统运行正常', 'success');
-                } else {
-                    components.showNotification('系统状态异常', 'warning');
-                }
-            } catch (error) {
-                components.showNotification('系统检查失败', 'error');
-            }
-        }
-
-        // 使用navigation的快速搜索
-        function openSearchModal() {
-            if (window.navigation) {
-                window.navigation.openQuickSearch();
-            } else {
-                components.openModal('searchModal');
-                setTimeout(() => {
-                    document.getElementById('searchInput').focus();
-                }, 300);
-            }
-        }
-        
-        function closeSearchModal() {
-            if (window.navigation) {
-                window.navigation.closeQuickSearch();
-            } else {
-                components.closeModal();
-                document.getElementById('searchInput').value = '';
-            }
-        }
-
-        function performQuickSearch() {
-            const input = document.getElementById('searchInput');
-            const query = input.value.trim();
-            
-            if (!query) {
-                components.showNotification('请输入搜索关键词', 'warning');
-                return;
-            }
-            
-            // 关闭模态框
-            closeSearchModal();
-            
-            // 跳转到搜索页面并带上查询参数
-            window.location.href = `/search.html?q=${encodeURIComponent(query)}`;
-        }
-        
-        // 键盘快捷键支持
-        document.addEventListener('keydown', (e) => {
-            // Ctrl+K 或 Cmd+K 打开搜索
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                openSearchModal();
-            }
-        
-            // ESC 键关闭搜索模态框
-            if (e.key === 'Escape') {
-                closeSearchModal();
-            }
-            
-            // Enter 键执行搜索
-            if (e.key === 'Enter' && document.querySelector('.modal-open #searchInput')) {
-                e.preventDefault();
-                performQuickSearch();
-            }
-        });
     </script>
-    <script src="static/js/components.js"></script>
-    <script src="static/js/modern-nav.js"></script>
 </body>
-</html> 
+</html>

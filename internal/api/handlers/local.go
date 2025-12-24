@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"nsfw-go/internal/repo"
 	"nsfw-go/internal/service"
@@ -256,12 +257,49 @@ func (h *LocalHandler) ServeImage(c *gin.Context) {
 	// Gin框架已经自动解码了URL参数，直接使用
 	decodedPath := imagePath
 
-	// 构建完整的文件路径
-	fullPath := filepath.Join(h.mediaLibraryPath, decodedPath)
+	// 清理路径中的双斜杠
+	decodedPath = strings.ReplaceAll(decodedPath, "//", "/")
 
+	var fullPath string
 
-	// 安全检查：确保路径在媒体库目录内
-	if !strings.HasPrefix(fullPath, h.mediaLibraryPath) {
+	// 调试日志
+	log.Printf("ServeImage - 原始路径: %s", decodedPath)
+	log.Printf("ServeImage - 媒体库路径: %s", h.mediaLibraryPath)
+
+	// 处理容器路径映射
+	if strings.HasPrefix(decodedPath, "/app/media/") {
+		// 容器内路径，去除 /app 前缀并直接使用
+		fullPath = strings.TrimPrefix(decodedPath, "/app")
+		log.Printf("ServeImage - 容器路径处理后: %s", fullPath)
+	} else if strings.HasPrefix(decodedPath, "/media/") {
+		// 已经是宿主机路径，直接使用
+		fullPath = decodedPath
+		log.Printf("ServeImage - 宿主机路径直接使用: %s", fullPath)
+	} else {
+		// 相对路径，拼接到媒体库路径
+		// 在容器环境中，直接使用配置的媒体库路径，不进行映射
+		basePath := h.mediaLibraryPath
+		log.Printf("ServeImage - 使用媒体库路径: %s", basePath)
+		fullPath = filepath.Join(basePath, decodedPath)
+		log.Printf("ServeImage - 相对路径拼接结果: %s", fullPath)
+	}
+
+	// 安全检查：确保路径在允许的媒体目录内
+	allowedPaths := []string{
+		h.mediaLibraryPath,     // 配置的媒体库路径
+		"/media/Links/PornDB",  // 实际的媒体目录
+		"/MediaCenter",         // 可能的媒体中心路径
+	}
+
+	isAllowed := false
+	for _, allowedPath := range allowedPaths {
+		if strings.HasPrefix(fullPath, allowedPath) {
+			isAllowed = true
+			break
+		}
+	}
+
+	if !isAllowed {
 		c.JSON(http.StatusForbidden, Response{
 			Code:    "ERROR",
 			Message: "访问被拒绝",

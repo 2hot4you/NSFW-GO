@@ -1,252 +1,151 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📋 系统日志 - NSFW-Go</title>
+    <title>系统日志 - NSFW-GO</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="static/css/design-system.css">
     <link rel="stylesheet" href="static/css/components.css">
-    <link rel="stylesheet" href="static/css/tailwind-fixes.css">
     <style>
-        /* 页面特定样式 */
-        .logs-container {
-            min-height: calc(100vh - 64px);
-            padding: 2rem 1rem;
-        }
-
         .log-entry {
-            font-family: 'Consolas', 'Monaco', 'Lucida Console', monospace;
-            font-size: 0.875rem;
-            line-height: 1.5;
-            border-left: 3px solid transparent;
-            transition: all 0.2s;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
         }
 
-        .log-entry:hover {
-            background: rgba(255, 255, 255, 0.02);
-            border-left-color: var(--primary-light);
-        }
-
-        .log-level-info {
-            border-left-color: #3b82f6;
-        }
-
-        .log-level-warn {
-            border-left-color: #f59e0b;
-        }
-
-        .log-level-error {
-            border-left-color: #ef4444;
-        }
-
-        .log-level-debug {
-            border-left-color: #8b5cf6;
-        }
-
-        .log-timestamp {
-            color: #6b7280;
-            font-weight: 500;
-        }
-
-        .log-level {
-            padding: 0.125rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
+        .log-level-badge {
             min-width: 60px;
             text-align: center;
         }
-
-        .log-level.info {
-            background: rgba(59, 130, 246, 0.2);
-            color: #93c5fd;
-        }
-
-        .log-level.warn {
-            background: rgba(245, 158, 11, 0.2);
-            color: #fbbf24;
-        }
-
-        .log-level.error {
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-        }
-
-        .log-level.debug {
-            background: rgba(139, 92, 246, 0.2);
-            color: #c4b5fd;
-        }
-
-        .log-content {
-            word-wrap: break-word;
-            white-space: pre-wrap;
-        }
-
-        .filter-active {
-            background: rgba(99, 102, 241, 0.2) !important;
-            color: #818cf8 !important;
-            border-color: rgba(99, 102, 241, 0.3) !important;
-        }
-
-        .auto-refresh-indicator {
-            width: 8px;
-            height: 8px;
-            background: #10b981;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
     </style>
 </head>
-<body class="min-h-screen overflow-x-hidden">
-    <!-- 页面进度条 -->
-    <div id="pageProgress" class="page-progress">
-        <div></div>
+
+<body class="bg-dark text-main font-sans antialiased selection:bg-primary selection:text-white">
+    <div class="flex h-screen overflow-hidden">
+        <!-- 侧边栏容器 -->
+        <div id="sidebar-container"></div>
+
+        <!-- 主内容区 -->
+        <div class="flex-1 flex flex-col h-screen overflow-hidden relative">
+            <!-- 顶部装饰 -->
+            <div
+                class="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none z-0">
+            </div>
+
+            <!-- 滚动内容区 -->
+            <main class="flex-1 overflow-y-auto relative z-10 custom-scrollbar p-6 lg:p-10">
+                <div class="max-w-7xl mx-auto">
+                    <!-- 页面标题 -->
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                        <div>
+                            <h1 class="text-3xl font-bold tracking-tight text-white mb-2">系统日志</h1>
+                            <p class="text-muted">实时监控系统运行状态和错误信息</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button id="autoRefreshBtn" onclick="toggleAutoRefresh()" class="btn btn-primary">
+                                <i class="fas fa-sync-alt mr-2" id="refreshIcon"></i>
+                                <span id="autoRefreshText">自动刷新</span>
+                            </button>
+                            <button onclick="downloadLogs()" class="btn btn-secondary">
+                                <i class="fas fa-download mr-2"></i>下载
+                            </button>
+                            <button onclick="clearLogs()" class="btn btn-secondary text-red-400 hover:text-red-300">
+                                <i class="fas fa-trash-alt mr-2"></i>清空
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 过滤器 -->
+                    <div class="glass-card p-4 mb-6 flex flex-wrap gap-4 items-center justify-between">
+                        <div class="flex flex-wrap gap-4">
+                            <!-- 级别过滤 -->
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-muted">级别:</span>
+                                <div class="flex bg-white/5 rounded-lg p-1">
+                                    <button onclick="filterByLevel('all')"
+                                        class="filter-btn px-3 py-1 rounded-md text-xs font-medium transition-all bg-primary text-white"
+                                        data-level="all">全部</button>
+                                    <button onclick="filterByLevel('info')"
+                                        class="filter-btn px-3 py-1 rounded-md text-xs font-medium transition-all text-muted hover:text-white"
+                                        data-level="info">INFO</button>
+                                    <button onclick="filterByLevel('warn')"
+                                        class="filter-btn px-3 py-1 rounded-md text-xs font-medium transition-all text-muted hover:text-white"
+                                        data-level="warn">WARN</button>
+                                    <button onclick="filterByLevel('error')"
+                                        class="filter-btn px-3 py-1 rounded-md text-xs font-medium transition-all text-muted hover:text-white"
+                                        data-level="error">ERROR</button>
+                                    <button onclick="filterByLevel('debug')"
+                                        class="filter-btn px-3 py-1 rounded-md text-xs font-medium transition-all text-muted hover:text-white"
+                                        data-level="debug">DEBUG</button>
+                                </div>
+                            </div>
+
+                            <!-- 分类过滤 -->
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-muted">分类:</span>
+                                <div class="flex bg-white/5 rounded-lg p-1">
+                                    <button onclick="filterByCategory('all')"
+                                        class="category-btn px-3 py-1 rounded-md text-xs font-medium transition-all bg-primary text-white"
+                                        data-category="all">全部</button>
+                                    <button onclick="filterByCategory('system')"
+                                        class="category-btn px-3 py-1 rounded-md text-xs font-medium transition-all text-muted hover:text-white"
+                                        data-category="system">系统</button>
+                                    <button onclick="filterByCategory('crawler')"
+                                        class="category-btn px-3 py-1 rounded-md text-xs font-medium transition-all text-muted hover:text-white"
+                                        data-category="crawler">爬虫</button>
+                                    <button onclick="filterByCategory('torrent')"
+                                        class="category-btn px-3 py-1 rounded-md text-xs font-medium transition-all text-muted hover:text-white"
+                                        data-category="torrent">下载</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 搜索 -->
+                        <div class="relative w-full md:w-64">
+                            <i
+                                class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-muted text-xs"></i>
+                            <input type="text" id="searchInput" oninput="searchLogs()"
+                                class="w-full bg-input border-transparent focus:border-primary rounded-lg py-2 pl-8 pr-4 text-sm text-white placeholder-muted"
+                                placeholder="搜索日志内容...">
+                        </div>
+                    </div>
+
+                    <!-- 统计卡片 -->
+                    <div id="logStats" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                        <!-- JS 注入 -->
+                    </div>
+
+                    <!-- 日志列表 -->
+                    <div class="glass-card overflow-hidden">
+                        <div class="px-6 py-4 border-b border-white/5 flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-white">实时日志</h3>
+                            <span id="logCount" class="text-sm text-muted">共 0 条</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="text-xs text-muted border-b border-white/5 bg-white/5">
+                                        <th class="px-6 py-3 font-medium">时间</th>
+                                        <th class="px-6 py-3 font-medium">级别</th>
+                                        <th class="px-6 py-3 font-medium">分类</th>
+                                        <th class="px-6 py-3 font-medium">消息</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logsContainer" class="text-sm divide-y divide-white/5">
+                                    <!-- JS 注入 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
     </div>
 
-    <!-- 主要内容区域 -->
-    <main class="page-container-table logs-container">
-        <!-- 页面标题 -->
-        <div class="flex-between mb-8">
-            <div class="fade-in">
-                <h1 class="text-2xl font-bold mb-2">
-                    <span class="glow-text">📋 系统日志</span>
-                </h1>
-                <p class="text-secondary">实时查看系统运行日志和错误信息</p>
-            </div>
-
-            <!-- 操作按钮 -->
-            <div class="flex gap-3">
-                <button id="autoRefreshBtn" onclick="toggleAutoRefresh()" class="btn btn-success" title="自动刷新">
-                    <div class="auto-refresh-indicator"></div>
-                    <span id="autoRefreshText">自动刷新</span>
-                </button>
-                <button onclick="clearLogs()" class="btn btn-danger" title="清空日志">
-                    <i class="fas fa-trash"></i>
-                    <span>清空</span>
-                </button>
-                <button onclick="downloadLogs()" class="btn btn-primary" title="下载日志">
-                    <i class="fas fa-download"></i>
-                    <span>下载</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- 过滤器和搜索 -->
-        <div class="glass-card mb-6 fade-in" style="animation-delay: 0.1s;">
-            <div class="flex flex-wrap gap-4 items-center">
-                <!-- 日志级别过滤 -->
-                <div class="flex gap-2">
-                    <span class="text-sm font-medium text-muted">级别:</span>
-                    <button onclick="filterByLevel('all')" class="btn btn-sm btn-secondary filter-btn filter-active" data-level="all">
-                        全部
-                    </button>
-                    <button onclick="filterByLevel('info')" class="btn btn-sm btn-secondary filter-btn" data-level="info">
-                        INFO
-                    </button>
-                    <button onclick="filterByLevel('warn')" class="btn btn-sm btn-secondary filter-btn" data-level="warn">
-                        WARN
-                    </button>
-                    <button onclick="filterByLevel('error')" class="btn btn-sm btn-secondary filter-btn" data-level="error">
-                        ERROR
-                    </button>
-                    <button onclick="filterByLevel('debug')" class="btn btn-sm btn-secondary filter-btn" data-level="debug">
-                        DEBUG
-                    </button>
-                </div>
-
-                <!-- 日志分类过滤 -->
-                <div class="flex gap-2">
-                    <span class="text-sm font-medium text-muted">分类:</span>
-                    <button onclick="filterByCategory('all')" class="btn btn-sm btn-secondary category-btn filter-active" data-category="all">
-                        全部
-                    </button>
-                    <button onclick="filterByCategory('system')" class="btn btn-sm btn-secondary category-btn" data-category="system">
-                        系统
-                    </button>
-                    <button onclick="filterByCategory('crawler')" class="btn btn-sm btn-secondary category-btn" data-category="crawler">
-                        爬虫
-                    </button>
-                    <button onclick="filterByCategory('scanner')" class="btn btn-sm btn-secondary category-btn" data-category="scanner">
-                        扫描
-                    </button>
-                    <button onclick="filterByCategory('torrent')" class="btn btn-sm btn-secondary category-btn" data-category="torrent">
-                        下载
-                    </button>
-                    <button onclick="filterByCategory('config')" class="btn btn-sm btn-secondary category-btn" data-category="config">
-                        配置
-                    </button>
-                </div>
-
-                <!-- 搜索框 -->
-                <div class="flex-1 min-w-64">
-                    <div class="input-group">
-                        <input
-                            type="text"
-                            id="searchInput"
-                            placeholder="搜索日志内容..."
-                            class="input-field"
-                            oninput="searchLogs()"
-                        >
-                        <button class="input-group-btn" onclick="searchLogs()">
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 日志统计 -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 fade-in" style="animation-delay: 0.2s;" id="logStats">
-            <!-- 统计卡片将通过JS动态生成 -->
-        </div>
-
-        <!-- 日志列表 -->
-        <div class="glass-card fade-in" style="animation-delay: 0.3s;">
-            <div class="card-header">
-                <div class="flex-between">
-                    <h3 class="card-title">
-                        <i class="fas fa-list-alt text-primary-light"></i>
-                        实时日志
-                    </h3>
-                    <div class="flex items-center gap-3">
-                        <span class="text-sm text-muted" id="logCount">共 0 条</span>
-                        <button onclick="refreshLogs()" class="btn btn-sm btn-primary">
-                            <i class="fas fa-sync-alt" id="refreshIcon"></i>
-                            刷新
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-body p-0">
-                <div class="overflow-x-auto">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th class="col-time">时间</th>
-                                <th class="col-level">级别</th>
-                                <th class="col-module">模块</th>
-                                <th class="col-action">操作</th>
-                                <th class="col-message">消息</th>
-                            </tr>
-                        </thead>
-                        <tbody id="logsContainer">
-                            <!-- 日志内容将通过JS动态生成 -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </main>
-
+    <script src="static/js/components.js"></script>
+    <script src="static/js/sidebar.js"></script>
     <script>
         // 全局变量
         let currentLogs = [];
@@ -259,30 +158,25 @@
         let isFirstLoad = true;
 
         // 页面加载完成后执行
-        document.addEventListener('DOMContentLoaded', function() {
-            initLogsPage();
+        document.addEventListener('DOMContentLoaded', function () {
             loadLogs();
             startAutoRefresh();
         });
-
-        // 初始化日志页面
-        function initLogsPage() {
-            // 设置页面加载进度
-            const progress = document.querySelector('#pageProgress > div');
-            if (progress) {
-                progress.style.width = '50%';
-                setTimeout(() => progress.style.width = '100%', 500);
-                setTimeout(() => document.getElementById('pageProgress').style.display = 'none', 1000);
-            }
-        }
 
         // 加载日志数据
         async function loadLogs() {
             const container = document.getElementById('logsContainer');
 
-            // 显示加载状态
-            if (!currentLogs.length) {
-                container.innerHTML = components.createLoadingState('加载日志数据...');
+            // 显示加载状态 (仅首次)
+            if (isFirstLoad && !currentLogs.length) {
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="px-6 py-12 text-center text-muted">
+                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                            <p>加载日志数据...</p>
+                        </td>
+                    </tr>
+                `;
             }
 
             try {
@@ -296,7 +190,6 @@
 
                 if (data.success && data.data) {
                     currentLogs = data.data;
-                    // 使用从API返回的统计信息
                     if (data.meta && data.meta.stats) {
                         currentStats = data.meta.stats;
                     }
@@ -304,7 +197,7 @@
                     updateLogStats();
                     renderLogs();
 
-                    if (!isFirstLoad) {
+                    if (!isFirstLoad && !isAutoRefresh) {
                         components.showNotification('日志已刷新', 'success');
                     }
                     isFirstLoad = false;
@@ -314,13 +207,15 @@
             } catch (error) {
                 console.error('获取日志失败:', error);
 
-                // 模拟日志数据用于演示
-                currentLogs = generateMockLogs();
-                applyFilters();
-                updateLogStats();
-                renderLogs();
-
-                components.showNotification('无法连接到日志服务，正在使用模拟数据', 'warning');
+                // 仅在首次加载失败时使用模拟数据
+                if (isFirstLoad) {
+                    currentLogs = generateMockLogs();
+                    applyFilters();
+                    updateLogStats();
+                    renderLogs();
+                    components.showNotification('无法连接到日志服务，正在使用模拟数据', 'warning');
+                    isFirstLoad = false;
+                }
             }
         }
 
@@ -366,7 +261,7 @@
                 const searchTerm = document.getElementById('searchInput').value.toLowerCase();
                 const searchMatch = !searchTerm ||
                     log.message.toLowerCase().includes(searchTerm) ||
-                    log.source.toLowerCase().includes(searchTerm);
+                    (log.source && log.source.toLowerCase().includes(searchTerm));
 
                 return levelMatch && categoryMatch && searchMatch;
             });
@@ -374,7 +269,6 @@
 
         // 更新日志统计
         function updateLogStats() {
-            // 优先使用从API返回的统计信息，否则从当前日志计算
             const stats = currentStats.total ? currentStats : {
                 total: currentLogs.length,
                 info: currentLogs.filter(log => log.level === 'info').length,
@@ -385,40 +279,25 @@
 
             const container = document.getElementById('logStats');
             container.innerHTML = `
-                <div class="glass-card text-center">
-                    <div class="stat-icon mx-auto mb-2" style="width: 48px; height: 48px;">
-                        <i class="fas fa-file-alt"></i>
-                    </div>
-                    <div class="text-lg font-bold">${stats.total}</div>
-                    <div class="text-sm text-muted">总日志</div>
+                <div class="glass-card p-4 text-center">
+                    <div class="text-2xl font-bold text-white mb-1">${stats.total}</div>
+                    <div class="text-xs text-muted uppercase">总日志</div>
                 </div>
-                <div class="glass-card text-center">
-                    <div class="stat-icon mx-auto mb-2" style="width: 48px; height: 48px; background: rgba(59, 130, 246, 0.2);">
-                        <i class="fas fa-info-circle"></i>
-                    </div>
-                    <div class="text-lg font-bold">${stats.info}</div>
-                    <div class="text-sm text-muted">信息</div>
+                <div class="glass-card p-4 text-center border-b-2 border-blue-500">
+                    <div class="text-2xl font-bold text-blue-400 mb-1">${stats.info}</div>
+                    <div class="text-xs text-muted uppercase">Info</div>
                 </div>
-                <div class="glass-card text-center">
-                    <div class="stat-icon mx-auto mb-2" style="width: 48px; height: 48px; background: rgba(245, 158, 11, 0.2);">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                    <div class="text-lg font-bold">${stats.warn}</div>
-                    <div class="text-sm text-muted">警告</div>
+                <div class="glass-card p-4 text-center border-b-2 border-yellow-500">
+                    <div class="text-2xl font-bold text-yellow-400 mb-1">${stats.warn}</div>
+                    <div class="text-xs text-muted uppercase">Warn</div>
                 </div>
-                <div class="glass-card text-center">
-                    <div class="stat-icon mx-auto mb-2" style="width: 48px; height: 48px; background: rgba(239, 68, 68, 0.2);">
-                        <i class="fas fa-times-circle"></i>
-                    </div>
-                    <div class="text-lg font-bold">${stats.error}</div>
-                    <div class="text-sm text-muted">错误</div>
+                <div class="glass-card p-4 text-center border-b-2 border-red-500">
+                    <div class="text-2xl font-bold text-red-400 mb-1">${stats.error}</div>
+                    <div class="text-xs text-muted uppercase">Error</div>
                 </div>
-                <div class="glass-card text-center">
-                    <div class="stat-icon mx-auto mb-2" style="width: 48px; height: 48px; background: rgba(139, 92, 246, 0.2);">
-                        <i class="fas fa-bug"></i>
-                    </div>
-                    <div class="text-lg font-bold">${stats.debug || 0}</div>
-                    <div class="text-sm text-muted">调试</div>
+                <div class="glass-card p-4 text-center border-b-2 border-purple-500">
+                    <div class="text-2xl font-bold text-purple-400 mb-1">${stats.debug || 0}</div>
+                    <div class="text-xs text-muted uppercase">Debug</div>
                 </div>
             `;
         }
@@ -431,15 +310,9 @@
             if (filteredLogs.length === 0) {
                 container.innerHTML = `
                     <tr>
-                        <td colspan="5" class="text-center py-8">
-                            <div class="text-muted">
-                                <i class="fas fa-search text-2xl mb-3"></i>
-                                <p>没有找到匹配的日志</p>
-                                <button onclick="clearFilters()" class="btn btn-sm btn-primary mt-3">
-                                    <i class="fas fa-times"></i>
-                                    清除过滤器
-                                </button>
-                            </div>
+                        <td colspan="4" class="px-6 py-12 text-center text-muted">
+                            <i class="fas fa-search text-2xl mb-2"></i>
+                            <p>没有找到匹配的日志</p>
                         </td>
                     </tr>
                 `;
@@ -449,28 +322,25 @@
 
             const logsHTML = filteredLogs.map(log => {
                 const timestamp = new Date(log.timestamp).toLocaleString('zh-CN', {
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
+                    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
                 });
 
-                const levelClass = log.level === 'error' ? 'text-danger' :
-                                 log.level === 'warn' ? 'text-warning' :
-                                 log.level === 'info' ? 'text-success' : 'text-muted';
+                let levelBadgeClass = 'bg-gray-700 text-gray-300';
+                if (log.level === 'info') levelBadgeClass = 'bg-blue-500/20 text-blue-400';
+                if (log.level === 'warn') levelBadgeClass = 'bg-yellow-500/20 text-yellow-400';
+                if (log.level === 'error') levelBadgeClass = 'bg-red-500/20 text-red-400';
+                if (log.level === 'debug') levelBadgeClass = 'bg-purple-500/20 text-purple-400';
 
                 return `
-                    <tr class="log-level-${log.level}">
-                        <td class="font-mono">${timestamp}</td>
-                        <td>
-                            <span class="badge badge-${log.level === 'error' ? 'danger' : log.level === 'warn' ? 'warning' : 'success'} ${levelClass}">
-                                ${log.level.toUpperCase()}
+                    <tr class="hover:bg-white/5 transition-colors log-entry">
+                        <td class="px-6 py-3 whitespace-nowrap text-muted font-mono text-xs">${timestamp}</td>
+                        <td class="px-6 py-3 whitespace-nowrap">
+                            <span class="px-2 py-1 rounded text-xs font-bold uppercase ${levelBadgeClass} log-level-badge inline-block">
+                                ${log.level}
                             </span>
                         </td>
-                        <td class="text-muted">${log.category || '-'}</td>
-                        <td class="text-muted">${log.action || '-'}</td>
-                        <td class="break-words">${log.message}</td>
+                        <td class="px-6 py-3 whitespace-nowrap text-muted text-xs">${log.category || '-'}</td>
+                        <td class="px-6 py-3 text-gray-300 break-all">${log.message}</td>
                     </tr>
                 `;
             }).join('');
@@ -482,12 +352,15 @@
         // 级别过滤
         function filterByLevel(level) {
             currentLevelFilter = level;
-
-            // 更新按钮状态
             document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.toggle('filter-active', btn.dataset.level === level);
+                if (btn.dataset.level === level) {
+                    btn.classList.remove('text-muted', 'hover:text-white');
+                    btn.classList.add('bg-primary', 'text-white');
+                } else {
+                    btn.classList.add('text-muted', 'hover:text-white');
+                    btn.classList.remove('bg-primary', 'text-white');
+                }
             });
-
             applyFilters();
             renderLogs();
         }
@@ -495,12 +368,15 @@
         // 分类过滤
         function filterByCategory(category) {
             currentCategoryFilter = category;
-
-            // 更新按钮状态
             document.querySelectorAll('.category-btn').forEach(btn => {
-                btn.classList.toggle('filter-active', btn.dataset.category === category);
+                if (btn.dataset.category === category) {
+                    btn.classList.remove('text-muted', 'hover:text-white');
+                    btn.classList.add('bg-primary', 'text-white');
+                } else {
+                    btn.classList.add('text-muted', 'hover:text-white');
+                    btn.classList.remove('bg-primary', 'text-white');
+                }
             });
-
             applyFilters();
             renderLogs();
         }
@@ -511,55 +387,26 @@
             renderLogs();
         }
 
-        // 清除过滤器
-        function clearFilters() {
-            currentLevelFilter = 'all';
-            currentCategoryFilter = 'all';
-            document.getElementById('searchInput').value = '';
-
-            // 重置按钮状态
-            document.querySelectorAll('.filter-btn, .category-btn').forEach(btn => {
-                btn.classList.remove('filter-active');
-            });
-            document.querySelector('[data-level="all"]').classList.add('filter-active');
-            document.querySelector('[data-category="all"]').classList.add('filter-active');
-
-            applyFilters();
-            renderLogs();
-        }
-
-        // 刷新日志
-        async function refreshLogs() {
-            const icon = document.getElementById('refreshIcon');
-            icon.classList.add('fa-spin');
-
-            try {
-                await loadLogs();
-                components.showNotification('日志已刷新', 'success');
-            } catch (error) {
-                components.showNotification('刷新失败', 'error');
-            } finally {
-                icon.classList.remove('fa-spin');
-            }
-        }
-
         // 切换自动刷新
         function toggleAutoRefresh() {
             isAutoRefresh = !isAutoRefresh;
             const btn = document.getElementById('autoRefreshBtn');
             const text = document.getElementById('autoRefreshText');
+            const icon = document.getElementById('refreshIcon');
 
             if (isAutoRefresh) {
                 startAutoRefresh();
                 btn.classList.remove('btn-secondary');
-                btn.classList.add('btn-success');
+                btn.classList.add('btn-primary');
                 text.textContent = '自动刷新';
+                icon.classList.add('fa-spin'); // 可选：让图标旋转表示正在自动刷新
                 components.showNotification('自动刷新已开启', 'success');
             } else {
                 stopAutoRefresh();
-                btn.classList.remove('btn-success');
+                btn.classList.remove('btn-primary');
                 btn.classList.add('btn-secondary');
                 text.textContent = '手动模式';
+                icon.classList.remove('fa-spin');
                 components.showNotification('自动刷新已关闭', 'info');
             }
         }
@@ -571,7 +418,7 @@
                 if (isAutoRefresh) {
                     loadLogs();
                 }
-            }, 5000); // 每5秒刷新一次
+            }, 5000);
         }
 
         // 停止自动刷新
@@ -587,12 +434,8 @@
             if (!confirm('确定要清空所有日志吗？此操作不可恢复。')) {
                 return;
             }
-
             try {
-                const response = await fetch('/api/v1/logs', {
-                    method: 'DELETE'
-                });
-
+                const response = await fetch('/api/v1/logs', { method: 'DELETE' });
                 if (response.ok) {
                     currentLogs = [];
                     applyFilters();
@@ -624,7 +467,6 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-
             components.showNotification('日志已下载', 'success');
         }
 
@@ -633,7 +475,6 @@
             stopAutoRefresh();
         });
     </script>
-    <script src="static/js/components.js"></script>
-    <script src="static/js/modern-nav.js"></script>
 </body>
+
 </html>
